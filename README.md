@@ -65,7 +65,7 @@ The principles do not depend on the language. The examples are written in Python
 | `# ...` above a method | the method's documentation |
 | `...` | code omitted |
 
-A short example shows only what relates to the rule: constructors, handlers and the rest of the code are omitted. How everything fits together is shown in the [full example](#full-example-paying-for-an-order).
+A short example shows only what relates to the rule: constructors, handlers and the rest of the code are omitted. How everything fits together is shown in the [full example](#full-example-paying-for-an-order). An example stands right after the statement it illustrates.
 
 The shop types (`Order`, `Cart`, `Money` with methods `rub`, `plus`, `minus_percent`, `is_at_least` and others) are assumed to be defined already. In a language without inheritance the part of C2 about subclasses is not needed.
 
@@ -88,7 +88,7 @@ Instead of specific libraries and frameworks, the examples use placeholder types
 
 ### D1. The public API is simpler than the internals
 
-A function, class or module takes the complexity on itself: the caller makes one simple call, and the internals do all the work. A new function or class is extracted only if it hides something and its public API is simpler than the code it replaces. Length alone is no reason to split code.
+A function, class or module takes the complexity on itself: the caller makes one simple call, and the internals do all the work. A new function or class is extracted only if it hides something and its public API is simpler than the code it replaces.
 
 ```python
 # Bad: the caller knows the acquirer's protocol and the order of steps
@@ -109,7 +109,7 @@ class HttpAcquirer:
 receipt = acquirer.charge(order.total(), card_token, idempotency_key=order.id())
 ```
 
-**Example: fine slicing that hides nothing is the same violation**
+Length alone is no reason to split code.
 
 ```python
 # Bad: to understand one rule you read three functions
@@ -135,7 +135,7 @@ def price_after_volume_discount(order: Order) -> Money:
 
 ### D2. Fewer special cases
 
-Design the contract so the caller has nothing to handle separately. If the goal of the call is already reached, that is success, not an error. Do not hide situations the caller must react to (bank refusal, out of stock).
+Design the contract so the caller has nothing to handle separately. If the goal of the call is already reached, that is success, not an error.
 
 ```python
 # Bad: removing twice (a double click in the browser) is an error everyone has to catch
@@ -155,7 +155,7 @@ class Cart:
             self._items.remove(sku)
 ```
 
-**Example: hide only what the caller does not need to react to**
+Do not hide situations the caller must react to (bank refusal, out of stock).
 
 ```python
 # Bad: the bank refused, but pay returned as on success - an unpaid order will go to packing
@@ -176,9 +176,7 @@ def pay(self, order: Order, card_token: str) -> None:
 
 ### D3. A narrow interface for each caller
 
-If an interface is already needed (N2) and different places use it, each of them depends only on the methods it uses. If there is only one caller, do not split the interface.
-
-> **Example:** while a single use case uses `Orders`, `get` and `save` stay in one interface.
+If an interface is already needed (N2) and different places use it, each of them depends only on the methods it uses.
 
 ```python
 # Bad: the report needs one method but depends on five
@@ -200,6 +198,10 @@ class PaidOrders(Interface):
 def revenue(orders: PaidOrders, start: date, end: date) -> Money: ...
 ```
 
+If there is only one caller, do not split the interface.
+
+> **Example:** while a single use case uses `Orders`, `get` and `save` stay in one interface.
+
 ---
 
 ## I - Inward
@@ -212,20 +214,14 @@ The adapter is not there so you can switch to another external system: that happ
 
 The adapter's public API is expressed in business terms: what to do and with which object, not how the external system does it. Business logic calls the adapter and does not know which system is behind it or how to talk to it.
 
-The adapter is passed through the constructor (dependency injection) and created at the entry point. Infrastructure with a single operation is passed as a function parameter.
-
-> **Example:** `is_expired(coupon, now)` receives the current time as an argument instead of reading the clock itself.
-
-The rule applies where there are business rules: the adapter protects them from the details of the external system. Code that only moves data between a request and storage and decides nothing needs no adapter and no separate layer.
-
-> **Example:** an admin panel endpoint that shows the list of delivery cities reads the table right in the handler. When a rule appears ("a city with active deliveries cannot be deleted"), it is moved out.
-
 **Examples of an adapter API in business terms:**
 - `orders.save(order)` instead of an SQL query;
 - `carts.get(customer_id)` instead of Redis commands;
 - `shipping.ship(parcel)` instead of an HTTP call;
 - `events.publish(order_paid)` instead of writing bytes to a queue;
 - a `now()` function passed as a parameter instead of reading the system clock inside a rule.
+
+The adapter is passed through the constructor (dependency injection) and created at the entry point.
 
 ```python
 # Bad: the "no more than 20 items" rule is mixed with Redis keys and commands
@@ -256,11 +252,17 @@ class RedisCarts:  # adapter: Redis keys, commands and format are only here
 shopping = Shopping(RedisCarts(RedisClient(env("REDIS_URL"))))
 ```
 
+Infrastructure with a single operation is passed as a function parameter.
+
+> **Example:** `is_expired(coupon, now)` receives the current time as an argument instead of reading the clock itself.
+
+The rule applies where there are business rules: the adapter protects them from the details of the external system. Code that only moves data between a request and storage and decides nothing needs no adapter and no separate layer.
+
+> **Example:** an admin panel endpoint that shows the list of delivery cities reads the table right in the handler. When a rule appears ("a city with active deliveries cannot be deleted"), it is moved out.
+
 ### I2. No cycles between packages
 
 Imports between packages form no cycles. A cycle is broken in one of two ways: a package describes its public API in its own terms and stops knowing about its neighbor, or the interface is moved into the package that uses it.
-
-> **Example of the second way:** `orders` must notify the customer, and `notifications` needs the order data. The `OrderNotifier` interface is declared in `orders` and implemented in `notifications`, and `orders` no longer imports `notifications`.
 
 ```
 # Bad
@@ -279,13 +281,15 @@ shop/
   main.py     # entry point: creates adapters and wires the packages together
 ```
 
+> **Example of the second way:** `orders` must notify the customer, and `notifications` needs the order data. The `OrderNotifier` interface is declared in `orders` and implemented in `notifications`, and `orders` no longer imports `notifications`.
+
 ---
 
 ## S - Single owner
 
 ### S1. Every piece of knowledge has one owner
 
-Knowledge is a decision that could have been different: a business rule, a format, an algorithm, a choice of provider. Code is split by knowledge, not by execution steps. Each piece of knowledge lives in exactly one place (a function, class or module); knowledge that changes together lives together. Similar code that changes for different reasons is two pieces of knowledge, and it is not merged.
+Knowledge is a decision that could have been different: a business rule, a format, an algorithm, a choice of provider. Code is split by knowledge, not by execution steps. Each piece of knowledge lives in exactly one place (a function, class or module); knowledge that changes together lives together.
 
 ```python
 # Bad: "free from 5000" lives in two places
@@ -315,7 +319,7 @@ def shipping_cost(order_total: Money) -> Money:
 free_shipping = ships_free(cart.total())
 ```
 
-**Example: similar code is not yet one piece of knowledge**
+Similar code that changes for different reasons is two pieces of knowledge, and it is not merged.
 
 ```python
 # Bad: two decisions are glued together because the numbers happen to match today
@@ -490,7 +494,7 @@ def total(order: Order) -> Money:
     return sum_lines(order.lines())
 ```
 
-**Example: three kinds of errors in one call**
+One call can meet all three kinds of errors: an expected one (A1), one translated by the adapter (T2) and one that is not caught (A2).
 
 ```python
 def ship(self, order: Order) -> None:
@@ -508,11 +512,7 @@ def ship(self, order: Order) -> None:
 
 ### N1. Only what is needed now
 
-Do not add features, parameters, settings or extension points the current task does not require. "Might come in handy" is not a reason. Generalize the shape of the public API, not the set of features. Think ahead only about what is expensive to change later: the format of stored data and our HTTP API for external consumers.
-
-> **Example:** `ship(parcel)` fits any shipment, while `ship_vip_order(order)` has to be repeated for every new case.
-
-> **Example:** an amount is stored together with its currency from the start: adding a currency to millions of rows already written is expensive, while renaming a method is cheap.
+Do not add features, parameters, settings or extension points the current task does not require. "Might come in handy" is not a reason.
 
 ```python
 # Bad: flexibility "for the future"
@@ -526,6 +526,14 @@ class CourierApiShipping:
 class CourierApiShipping:
     def ship(self, parcel: Parcel) -> str: ...
 ```
+
+Generalize the shape of the public API, not the set of features.
+
+> **Example:** `ship(parcel)` fits any shipment, while `ship_vip_order(order)` has to be repeated for every new case.
+
+Think ahead only about what is expensive to change later: the format of stored data and our HTTP API for external consumers.
+
+> **Example:** an amount is stored together with its currency from the start: adding a currency to millions of rows already written is expensive, while renaming a method is cheap.
 
 ### N2. An interface only where a second implementation is real
 
@@ -605,9 +613,11 @@ class CashOnDelivery(PaymentMethod):
         return RefundResult.OPERATOR_TASK_CREATED
 ```
 
-A subclass is an implementation too. Inherit from a class only when the subclass fully fulfills the parent's contract and the parent is designed for inheritance. Otherwise, use someone else's behavior by holding the object in a field and calling it (composition).
+A subclass is an implementation too. Inherit from a class only when the subclass fully fulfills the parent's contract and the parent is designed for inheritance.
 
 > **Example:** our own exceptions inherit from a common error class: that is what it exists for.
+
+Otherwise, use someone else's behavior by holding the object in a field and calling it (composition).
 
 ```python
 # Bad: a list subclass gets all of its methods, and they bypass the rule of add
@@ -628,9 +638,7 @@ class OrderLines:
 
 ### C3. A test checks the contract through the public API
 
-A test calls the code the same way a caller does and checks the result. Our own code that runs fast and without external systems is not replaced in a test. Infrastructure is replaced with a fake (N2), not with mocks. The fake and the real adapter are checked by the same test of the interface's contract, otherwise the fake drifts away from the real one. A test does not check private fields or the order of internal calls.
-
-> **Example:** `Order` and `Money` are real in a test, only the order storage is replaced.
+A test calls the code the same way a caller does and checks the result. A test does not check private fields or the order of internal calls. Infrastructure is replaced with a fake (N2), not with mocks.
 
 ```python
 # Bad: the test is tied to the internals
@@ -650,7 +658,11 @@ def test_placed_order_is_saved_as_new() -> None:
     assert orders.get(order_id).status() == OrderStatus.NEW
 ```
 
-**Example: one set of checks for the fake and the real adapter**
+Our own code that runs fast and without external systems is not replaced in a test.
+
+> **Example:** `Order` and `Money` are real in a test, only the order storage is replaced.
+
+The fake and the real adapter are checked by the same test of the interface's contract, otherwise the fake drifts away from the real one.
 
 ```python
 def check_orders_contract(orders: Orders) -> None:
@@ -695,7 +707,7 @@ def price_after_loyalty_discount(order: Order, customer: Customer) -> Money:
 
 ### E2. The same thing is done the same way
 
-One task is solved one way across the system: the same method names, one way to say "no value" and "error". New code follows the established way. If the established way violates another rule, new code still follows it, and the discrepancy is named explicitly: changing the architecture is decided by the team, not by the author of a single change. The exceptions are A1 and T1: new code passes errors up and validates foreign input, whatever the project's convention is.
+One task is solved one way across the system: the same method names, one way to say "no value" and "error". New code follows the established way.
 
 ```python
 # Bad: three adapters - three ways to say "not found"
@@ -721,7 +733,7 @@ class PostgresOrders:
     def get(self, order_id: str) -> Order | None: ...
 ```
 
-**Example: the established way matters more than the best one**
+If the established way violates another rule, new code still follows it, and the discrepancy is named explicitly: changing the architecture is decided by the team, not by the author of a single change. The exceptions are A1 and T1: new code passes errors up and validates foreign input, whatever the project's convention is.
 
 ```python
 # In the project all adapters raise an exception on "not found"
