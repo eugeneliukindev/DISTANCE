@@ -1,21 +1,25 @@
 # DISTANCE
 
-**English** | [Русский](README.ru.md) | [中文](README.zh-CN.md)
+**English** | [Русский](README.ru.md)
 
 **Keep your distance:** every piece of code knows as little as possible about the others. Then the code is cheap to understand and safe to change.
 
 | | Principle | Essence | Rules |
 |---|---|---|---|
-| [**D**](#d---deep) | Deep | The public API is simpler than the internals | [D1](#d1-the-public-api-is-simpler-than-the-internals) [D2](#d2-fewer-special-cases) [D3](#d3-talk-to-your-nearest-neighbor) [D4](#d4-a-narrow-interface-for-each-caller) |
-| [**I**](#i---inward) | Inward | Business logic does not know the infrastructure | [I1](#i1-business-logic-does-not-depend-on-infrastructure) [I2](#i2-an-interface-only-where-a-second-implementation-is-real) [I3](#i3-decisions-apart-from-side-effects) [I4](#i4-no-cycles-between-packages) |
-| [**S**](#s---single-owner) | Single owner | Every piece of knowledge and every invariant has one owner | [S1](#s1-every-piece-of-knowledge-has-one-owner) [S2](#s2-only-the-owner-changes-an-invariant) |
+| [**D**](#d---deep) | Deep | The public API is simpler than the internals | [D1](#d1-the-public-api-is-simpler-than-the-internals) [D2](#d2-fewer-special-cases) [D3](#d3-a-narrow-interface-for-each-caller) |
+| [**I**](#i---inward) | Inward | Dependencies point inward, toward business logic | [I1](#i1-business-logic-does-not-depend-on-infrastructure) [I2](#i2-no-cycles-between-packages) |
+| [**S**](#s---single-owner) | Single owner | Knowledge, an invariant and state each have one owner | [S1](#s1-every-piece-of-knowledge-has-one-owner) [S2](#s2-only-the-owner-changes-an-invariant) [S3](#s3-less-mutable-state) |
 | [**T**](#t---translate-at-the-boundary) | Translate at the boundary | Foreign data and errors are translated into our own once, at the system boundary | [T1](#t1-foreign-data-is-parsed-into-value-objects-at-the-boundary) [T2](#t2-foreign-errors-are-translated-into-ours-in-the-adapter) |
-| [**A**](#a---add-a-kind-not-a-branch) | Add a kind, not a branch | A new variant of behavior is a new implementation, not a new condition | [A1](#a1-a-new-variant-of-behavior-is-a-new-implementation) [A2](#a2-every-implementation-fulfills-the-whole-contract) [A3](#a3-composition-over-inheritance) |
-| [**N**](#n---needed-now) | Needed now | Only what is needed now | [N1](#n1-only-what-is-needed-now) |
-| [**C**](#c---contract) | Contract | The contract is written down and checked by a test | [C1](#c1-the-contract-is-written-in-the-public-api) [C2](#c2-a-test-checks-the-contract-through-the-public-api) [C3](#c3-code-without-tests-first-extract-the-decision-and-pin-it-with-a-test) |
+| [**A**](#a---always-handle-errors) | Always handle errors | An error is handled or passed up, but never lost | [A1](#a1-an-error-is-handled-or-passed-up) [A2](#a2-a-bug-is-not-caught) |
+| [**N**](#n---needed-now) | Needed now | Only what is needed now | [N1](#n1-only-what-is-needed-now) [N2](#n2-an-interface-only-where-a-second-implementation-is-real) |
+| [**C**](#c---contract) | Contract | The contract is written down, fulfilled and checked by a test | [C1](#c1-the-contract-is-written-in-the-public-api) [C2](#c2-every-implementation-fulfills-the-whole-contract) [C3](#c3-a-test-checks-the-contract-through-the-public-api) |
 | [**E**](#e---evident) | Evident | The code reads without surprises | [E1](#e1-a-name-says-what-it-is-and-why) [E2](#e2-the-same-thing-is-done-the-same-way) [E3](#e3-a-comment-explains-only-why) |
 
-If a rule makes the code more complex in a particular place, not simpler, it does not apply there.
+Code is complex when a change has to be made in many places, when a lot must be kept in mind to make it, or when it is unclear what else it will break. Every rule lowers one of these three. If a rule makes the code more complex in a particular place, not simpler, it does not apply there. For example, a reference-data module that only reads and writes table rows gains nothing from an adapter and a separate layer (I1).
+
+The rules are written for applications with business logic and input/output: services, backends, command-line tools. In a library, a script or a user interface the same ideas hold, but handlers, adapters and use cases may be absent.
+
+The document includes only rules that are independently written down in the guidelines of several ecosystems and do not contradict published research. The grounds for each rule are collected in the section [What the rules rest on](#what-the-rules-rest-on).
 
 ---
 
@@ -38,43 +42,43 @@ If a rule makes the code more complex in a particular place, not simpler, it doe
 | **Handler** | Code through which the outside world reaches us: an HTTP endpoint, a CLI command, a queue consumer. Parses the input, calls business logic, returns the response | `POST /orders/{id}/pay` |
 | **System boundary** | Handlers and adapters together: every place where our code meets the outside world | |
 | **Dependency injection** | A class receives its adapters through the constructor instead of creating them | `OrderPayment(orders, acquirer)` |
-| **Entry point** (`main`) | The place where the program starts, creates adapters and passes them to business logic | `main.py` |
-| **Value object** | An immutable data type that validates itself on creation | `PostalCode`, `Address`, `Money` |
+| **Entry point** (`main`) | The place where the program starts: the only one where configuration is read and adapters are created and passed to business logic | `main.py` |
+| **Domain type** | A type owned by business logic: an entity, a value object, our exception. Does not depend on infrastructure | `Order`, `Receipt`, `PaymentDeclined` |
+| **Value object** | An immutable data type that validates itself on creation | `PostalCode`, `Money` |
 | **Invariant** | A condition an object always maintains | "only a paid order is shipped" |
-| **Side effect** | An action beyond returning a result: writing to a database, a network call, an email, changing someone else's object | `payments.refund(...)` |
-| **Pure function** | A function without side effects: the result depends only on the arguments | `decide_return(order, lines)` |
 | **Fake** | A simple working implementation for tests. Not to be confused with a mock, which only checks calls | `InMemoryOrders` |
-| **Composition** | A class holds another object and calls it, instead of inheriting from it | `OrderLines` holds a dictionary |
+| **Composition** | A class holds another object and calls it, instead of inheriting from it | `OrderLines` holds a list |
 
 ### How to read the examples
 
-The principles do not depend on the language. The examples are written in Python without frameworks or language-specific features, so that a programmer in any language can read them.
+The principles do not depend on the language. The examples are written in Python only as a notation: classes, methods, `if`, `for`, `raise`, `return`. Features that other languages lack are not used.
 
-| In the examples | In Java | In Go |
-|---|---|---|
-| `class Orders(Protocol)` | `interface Orders` | `type Orders interface` |
-| `@dataclass(frozen=True)` | `record` | `struct` without setters |
-| `raise SomeError` | `throw new SomeException()` | `return ..., ErrSome` |
-| `None` | `null` / `Optional` | `nil` |
-| `"""..."""` under a method | Javadoc | comment above the function |
-| `raise Ours(error)` | `throw new Ours(error)` | `fmt.Errorf("...: %w", err)` |
-| `Decimal` | `BigDecimal` | a decimal type without rounding errors |
+| In the examples | Meaning |
+|---|---|
+| `class Orders(Interface)` | an interface: only methods, without code |
+| `class CashOnDelivery(PaymentMethod)` | the class implements the interface |
+| `Order \| None` | the value may be absent |
+| `self._status` | a private field |
+| `raise SomeError(...)` | raise an exception; in a language without exceptions - return an error |
+| `# ...` above a method | the method's documentation |
+| `...` | code omitted |
 
-The shop types (`Money` with methods `plus`, `times`, `is_at_least`, `Order`, `Cart` and others) are assumed to be defined already.
+A short example shows only what relates to the rule: constructors, handlers and the rest of the code are omitted. How everything fits together is shown in the [full example](#full-example-paying-for-an-order).
+
+The shop types (`Order`, `Cart`, `Money` with methods `rub`, `plus`, `minus_percent`, `is_at_least` and others) are assumed to be defined already. In a language without inheritance the part of C2 about subclasses is not needed.
 
 Instead of specific libraries and frameworks, the examples use placeholder types. Every language has them under its own names:
 
 | Placeholder type | What it does |
 |---|---|
-| `HttpRequest`, `HttpResponse` | an incoming request and response. `request.path_param(name)` is a path parameter, `request.json_string(name)` is a string field of the body or `None`, `request.json_body()` is the whole body as a dictionary. `HttpResponse(status, body)` |
+| `HttpRequest`, `HttpResponse` | an incoming request and response. `request.path_param(name)` is a path parameter, `request.json_string(name)` is a string field of the body or `None`. `HttpResponse(status, body)` |
 | `HttpClient` | outgoing HTTP requests. `post(path, body, headers)` returns an `HttpResult` with fields `status` and `body` (parsed JSON or `None`). A network failure or timeout -> `NetworkError` |
 | `Database` | a Postgres client. `fetch_one(sql, params)` returns a row as a "column -> value" dictionary or `None`, `execute(sql, params)` runs a statement |
-| `RedisClient` | a Redis client. Methods are named after Redis commands: `hgetall`, `hset`, `hincrby`, `expire`, `delete`. `transaction()` is a group of commands executed atomically on `exec()` (MULTI/EXEC) |
+| `RedisClient` | a Redis client. `hgetall(key)` reads a whole hash, `hset(key, field, value)` writes one field |
 | `Router` | any HTTP server or framework |
 | `Mock`, `expect_error` | a mock from any mocking library; a check that a function raises the expected exception |
-| `env(name)` | an environment variable |
-
-The short examples omit the handler's services; the [full example](#full-example-paying-for-an-order) shows how they are passed in.
+| `copy_of(x)` | an independent copy of an object |
+| `env(name)`, `today()` | an environment variable; the current date |
 
 ---
 
@@ -93,17 +97,38 @@ payment_id = acquirer.capture(intent_id)
 ```
 
 ```python
-# Good
+# Good: one call, the steps are hidden inside
 class HttpAcquirer:
-    def charge(self, amount: Money, card_token: str, idempotency_key: str) -> Receipt:
-        """Charges the full amount or nothing.
-
-        A repeated call with the same idempotency_key returns the same receipt and does not charge again.
-        Bank refusal -> PaymentDeclined. Network or service failure -> PaymentUnavailable.
-        """
-        ...
+    # Charges the full amount or nothing.
+    # A repeated call with the same idempotency_key does not charge again.
+    # Bank refusal -> PaymentDeclined. Network or service failure -> PaymentUnavailable.
+    def charge(self, amount: Money, card_token: str, idempotency_key: str) -> Receipt: ...
 
 receipt = acquirer.charge(order.total(), card_token, idempotency_key=order.id())
+```
+
+Fine slicing that hides nothing is the same violation:
+
+```python
+# Bad: to understand one rule you read three functions
+def price(order: Order) -> Money:
+    if is_big(order):
+        return with_discount(order)
+    return order.total()
+
+def is_big(order: Order) -> bool:
+    return order.total().is_at_least(Money.rub(10000))
+
+def with_discount(order: Order) -> Money:
+    return order.total().minus_percent(10)
+```
+
+```python
+# Good: the whole rule is in one place
+def price_after_volume_discount(order: Order) -> Money:
+    if order.total().is_at_least(BIG_ORDER_FROM):
+        return order.total().minus_percent(BIG_ORDER_DISCOUNT_PERCENT)
+    return order.total()
 ```
 
 ### D2. Fewer special cases
@@ -116,48 +141,44 @@ class Cart:
     def remove(self, sku: str) -> None:
         if sku not in self._items:
             raise ProductNotInCart(sku)
-        del self._items[sku]
-
-try:
-    cart.remove(sku)
-except ProductNotInCart:
-    pass
+        self._items.remove(sku)
 ```
 
 ```python
-# Good
+# Good: nothing to catch
 class Cart:
+    # After the call the cart has no sku, whether it was there or not.
     def remove(self, sku: str) -> None:
-        """After the call the cart has no sku, whether it was there or not."""
         if sku in self._items:
-            del self._items[sku]
-
-cart.remove(sku)
+            self._items.remove(sku)
 ```
 
-### D3. Talk to your nearest neighbor
-
-Code calls methods only on itself, its parameters, its fields and the objects it created. It does not walk a chain through someone else's internals. Exceptions are value objects and chained APIs such as query builders: their structure is their public API.
+Hide only what the caller does not need to react to:
 
 ```python
-# Bad
-def loyalty_discount(order: Order) -> Decimal:
-    return order.customer().profile().loyalty().level().discount_rate()
+# Bad: the bank refused, but pay returned as on success - an unpaid order will go to packing
+def pay(self, order: Order, card_token: str) -> None:
+    try:
+        receipt = self._acquirer.charge(order.total(), card_token, order.id())
+    except PaymentDeclined:
+        return
+    order.mark_paid(receipt)
 ```
 
 ```python
-# Good
-def loyalty_discount(order: Order, loyalty: Loyalty) -> Decimal:
-    return loyalty.discount_rate(order.customer_id())
+# Good: the bank refusal reaches the caller
+def pay(self, order: Order, card_token: str) -> None:
+    receipt = self._acquirer.charge(order.total(), card_token, order.id())
+    order.mark_paid(receipt)
 ```
 
-### D4. A narrow interface for each caller
+### D3. A narrow interface for each caller
 
-If an interface is already needed (I2) and different places use it, each of them depends only on the methods it uses. If there is only one caller, do not split the interface.
+If an interface is already needed (N2) and different places use it, each of them depends only on the methods it uses. If there is only one caller, do not split the interface: while a single use case uses `Orders`, `get` and `save` stay in one interface.
 
 ```python
 # Bad: the report needs one method but depends on five
-class OrderStore(Protocol):
+class OrderStore(Interface):
     def get(self, order_id: str) -> Order | None: ...
     def save(self, order: Order) -> None: ...
     def delete(self, order_id: str) -> None: ...
@@ -169,14 +190,10 @@ def revenue(store: OrderStore, start: date, end: date) -> Money: ...
 
 ```python
 # Good
-class PaidOrders(Protocol):
+class PaidOrders(Interface):
     def paid_between(self, start: date, end: date) -> list[Order]: ...
 
-def revenue(orders: PaidOrders, start: date, end: date) -> Money:
-    total = Money.zero("RUB")
-    for order in orders.paid_between(start, end):
-        total = total.plus(order.total())
-    return total
+def revenue(orders: PaidOrders, start: date, end: date) -> Money: ...
 ```
 
 ---
@@ -191,48 +208,24 @@ The adapter is not there so you can switch to another external system: that happ
 
 The adapter's public API is expressed in business terms: what to do and with which object, not how the external system does it. Business logic calls the adapter and does not know which system is behind it or how to talk to it.
 
-The adapter is passed through the constructor (dependency injection) and created at the entry point. Infrastructure with a single operation is passed as a function parameter.
+The adapter is passed through the constructor (dependency injection) and created at the entry point. Infrastructure with a single operation is passed as a function parameter: for example, `is_expired(coupon, now)` receives the current time as an argument instead of reading the clock itself.
+
+The rule applies where there are business rules: the adapter protects them from the details of the external system. Code that only moves data between a request and storage and decides nothing needs no adapter and no separate layer. For example, an admin panel endpoint that shows the list of delivery cities reads the table right in the handler. When a rule appears ("a city with active deliveries cannot be deleted"), it is moved out.
 
 For example: `orders.save(order)` instead of an SQL query, `carts.get(customer_id)` instead of Redis commands, `shipping.ship(parcel)` instead of an HTTP call, `events.publish(order_paid)` instead of writing bytes to a queue, a `now()` function passed as a parameter instead of reading the system clock inside a rule.
 
 ```python
 # Bad: the "no more than 20 items" rule is mixed with Redis keys and commands
-MAX_ITEMS = 20
-
 def add_to_cart(redis: RedisClient, customer_id: str, sku: str, quantity: int) -> None:
     key = "cart:" + customer_id
-    if redis.hlen(key) >= MAX_ITEMS and not redis.hexists(key, sku):
+    items = redis.hgetall(key)
+    if len(items) >= 20 and sku not in items:
         raise CartFull(customer_id)
-    redis.hincrby(key, sku, quantity)
-    redis.expire(key, 7 * 24 * 3600)
+    redis.hset(key, sku, int(items.get(sku, 0)) + quantity)
 ```
 
 ```python
-# Good: only the adapter knows Redis, the rule lives in Cart
-CART_TTL_SECONDS = 7 * 24 * 3600
-
-class RedisCarts:
-    """Adapter: a cart is stored in Redis as a hash "sku -> quantity"."""
-
-    def __init__(self, redis: RedisClient) -> None:
-        self._redis = redis
-
-    def get(self, customer_id: str) -> Cart:
-        """The customer's cart. If it does not exist yet - an empty cart."""
-        items = {}
-        for sku, quantity in self._redis.hgetall("cart:" + customer_id).items():
-            items[sku] = int(quantity)
-        return Cart(customer_id, items)
-
-    def save(self, cart: Cart) -> None:
-        key = "cart:" + cart.customer_id()
-        tx = self._redis.transaction()  # MULTI/EXEC: the old cart and the new one will not mix
-        tx.delete(key)
-        if cart.items():
-            tx.hset(key, cart.items())
-            tx.expire(key, CART_TTL_SECONDS)
-        tx.exec()
-
+# Good: the rule lives in Cart, only the adapter knows Redis
 class Shopping:
     def __init__(self, carts: RedisCarts) -> None:
         self._carts = carts
@@ -242,105 +235,17 @@ class Shopping:
         cart.add(sku, quantity)  # raises CartFull if there are already 20 items
         self._carts.save(cart)
 
+class RedisCarts:  # adapter: Redis keys, commands and format are only here
+    def get(self, customer_id: str) -> Cart: ...
+    def save(self, cart: Cart) -> None: ...
+
 # main.py
 shopping = Shopping(RedisCarts(RedisClient(env("REDIS_URL"))))
 ```
 
-### I2. An interface only where a second implementation is real
+### I2. No cycles between packages
 
-Introduce an interface only when there really is more than one implementation:
-- a fake for tests;
-- a second provider or a second database;
-- several variants of behavior already now, for example payment methods (A1);
-- a replacement that has already been decided.
-
-"Might come in handy" is not a reason. While there is one implementation, the caller depends on the class directly. When a second one appears, the interface is extracted from the existing class, and that is a mechanical change: the caller already uses only its public API. Our HTTP API and the user do not require an interface: their input is taken by a handler (T1).
-
-```python
-# Bad: an interface for business logic with a single implementation
-class DiscountPolicy(Protocol):
-    def apply(self, order: Order, customer: Customer) -> Money: ...
-
-class DefaultDiscountPolicy:
-    def apply(self, order: Order, customer: Customer) -> Money: ...
-
-class Checkout:
-    def __init__(self, orders: PostgresOrders, discounts: DiscountPolicy) -> None:
-        self._orders = orders
-        self._discounts = discounts
-
-    def quote(self, order: Order, customer: Customer) -> Money:
-        return self._discounts.apply(order, customer).plus(shipping_cost(order.total()))
-```
-
-```python
-# Good
-class Checkout:
-    def __init__(self, orders: PostgresOrders) -> None:
-        self._orders = orders
-
-    def quote(self, order: Order, customer: Customer) -> Money:
-        return price_after_loyalty_discount(order, customer).plus(shipping_cost(order.total()))
-```
-
-```python
-# Good: a second implementation appeared (the InMemoryOrders fake for tests) - the interface was extracted
-class Orders(Protocol):
-    def get(self, order_id: str) -> Order | None: ...
-    def save(self, order: Order) -> None: ...
-
-class Checkout:
-    def __init__(self, orders: Orders) -> None:
-        self._orders = orders
-```
-
-### I3. Decisions apart from side effects
-
-A pure function computes the business decision. Thin code performs the side effects (payment, emails, database writes) based on its result. An object changing its own state in its own method does not count as a side effect here.
-
-```python
-# Bad: the decision and the side effects are mixed
-def process_return(order: Order, lines: list[OrderLine], payments: Payments, notifier: Notifier) -> None:
-    refund = Money.zero(order.currency())
-    for line in lines:
-        if line.is_final_sale():
-            notifier.item_not_returnable(order.customer_id(), line)
-        else:
-            refund = refund.plus(line.price())
-    payments.refund(order.payment_id(), refund)
-```
-
-```python
-# Good
-@dataclass(frozen=True)
-class ReturnDecision:
-    refund: Money
-    rejected: list[OrderLine]
-
-def decide_return(order: Order, lines: list[OrderLine]) -> ReturnDecision:
-    refund = Money.zero(order.currency())
-    rejected = []
-    for line in lines:
-        if line.is_final_sale():
-            rejected.append(line)
-        else:
-            refund = refund.plus(line.price())
-    return ReturnDecision(refund, rejected)
-
-class Returns:
-    def __init__(self, payments: Payments, notifier: Notifier) -> None:
-        self._payments = payments
-        self._notifier = notifier
-
-    def process(self, order: Order, lines: list[OrderLine]) -> None:
-        decision = decide_return(order, lines)
-        self._payments.refund(order.payment_id(), decision.refund)
-        self._notifier.items_not_returnable(order.customer_id(), decision.rejected)
-```
-
-### I4. No cycles between packages
-
-Imports between packages form no cycles. A cycle is broken in one of two ways: a package describes its public API in its own terms and stops knowing about its neighbor, or the interface is moved into the package that uses it.
+Imports between packages form no cycles. A cycle is broken in one of two ways: a package describes its public API in its own terms and stops knowing about its neighbor, or the interface is moved into the package that uses it. An example of the second way: `orders` must notify the customer, and `notifications` needs the order data. The `OrderNotifier` interface is declared in `orders` and implemented in `notifications`, and `orders` no longer imports `notifications`.
 
 ```
 # Bad
@@ -370,30 +275,42 @@ Knowledge is a decision that could have been different: a business rule, a forma
 ```python
 # Bad: "free from 5000" lives in two places
 # orders/checkout.py
-def shipping_cost(order: Order) -> Money:
-    if order.total().amount >= Decimal("5000"):
-        return Money.zero("RUB")
-    return Money(Decimal("300"), "RUB")
+def shipping_cost(order_total: Money) -> Money:
+    if order_total.is_at_least(Money.rub(5000)):
+        return Money.rub(0)
+    return Money.rub(300)
 
 # http/cart_handler.py
-body = {"total": str(cart.total().amount), "free_shipping": cart.total().amount >= Decimal("5000")}
+free_shipping = cart.total().is_at_least(Money.rub(5000))
 ```
 
 ```python
 # Good: the knowledge belongs to shipping/tariff.py
-FREE_SHIPPING_FROM = Money(Decimal("5000"), "RUB")
-BASE_COST = Money(Decimal("300"), "RUB")
+FREE_SHIPPING_FROM = Money.rub(5000)
 
 def ships_free(order_total: Money) -> bool:
     return order_total.is_at_least(FREE_SHIPPING_FROM)
 
 def shipping_cost(order_total: Money) -> Money:
     if ships_free(order_total):
-        return Money.zero(order_total.currency)
-    return BASE_COST
+        return Money.rub(0)
+    return Money.rub(300)
 
 # http/cart_handler.py
-body = {"total": str(cart.total().amount), "free_shipping": ships_free(cart.total())}
+free_shipping = ships_free(cart.total())
+```
+
+Similar code is not yet one piece of knowledge:
+
+```python
+# Bad: two decisions are glued together because the numbers happen to match today
+MAX_ITEMS = 20  # both items in a cart and rows on a report page
+```
+
+```python
+# Good: the cart limit is changed by the business, the page size by the report design
+MAX_CART_ITEMS = 20
+REPORT_PAGE_SIZE = 20
 ```
 
 ### S2. Only the owner changes an invariant
@@ -401,35 +318,40 @@ body = {"total": str(cart.total().amount), "free_shipping": ships_free(cart.tota
 State with an invariant is closed inside the owning object. From outside it is changed only through the owner's methods, and the owner checks the transition. The caller says what to do instead of deciding for the owner.
 
 ```python
-# Bad: the admin panel writes the status directly, bypassing the transition rule
-def handle_update_order(request: HttpRequest) -> HttpResponse:
-    order = orders.get(request.path_param("order_id"))
-    order.status = request.json_string("status")  # an unpaid order can be "shipped"
-    orders.save(order)
-    return HttpResponse(204)
+# Bad: the status is written from outside, the transition rule is bypassed
+order.status = OrderStatus.SHIPPED  # this way an unpaid order can be "shipped"
+orders.save(order)
 ```
 
 ```python
-# Good: a separate action, Order checks the transition
+# Good: Order itself checks the transition
 class Order:
     def ship(self, tracking_number: str) -> None:
         if self._status != OrderStatus.PAID:
-            raise OrderCannotBeShipped(self._id, self._status)
+            raise OrderCannotBeShipped(self._id)
         self._status = OrderStatus.SHIPPED
         self._tracking_number = tracking_number
 
-    def status(self) -> OrderStatus:
-        return self._status
+order.ship(tracking_number)
+orders.save(order)
+```
 
-def handle_ship_order(request: HttpRequest) -> HttpResponse:
-    tracking_number = request.json_string("tracking_number")
-    if tracking_number is None:
-        return HttpResponse(400, {"error": "tracking_number is required"})
-    try:
-        fulfillment.ship(request.path_param("order_id"), tracking_number)
-    except OrderCannotBeShipped:
-        return HttpResponse(409, {"error": "only a paid order can be shipped"})
-    return HttpResponse(204)
+### S3. Less mutable state
+
+The less state a program has that can be changed, the fewer situations it can end up in. There is no global mutable state: everything the result depends on comes in as a parameter or through the constructor. Data that has no reason to change is immutable.
+
+```python
+# Bad: any code changes the discount at any moment, and the call to price does not show it
+current_discount_percent = 0
+
+def price(order: Order) -> Money:
+    return order.total().minus_percent(current_discount_percent)
+```
+
+```python
+# Good: everything the result depends on is visible in the parameters
+def price(order: Order, discount_percent: int) -> Money:
+    return order.total().minus_percent(discount_percent)
 ```
 
 ---
@@ -442,68 +364,44 @@ A foreign format (request JSON, a table row, an external API response, a value f
 
 ```python
 # Bad: raw JSON goes into business logic, and every function validates it again
-def handle_set_address(request: HttpRequest) -> HttpResponse:
-    delivery.set_address(request.path_param("order_id"), request.json_body())
-    return HttpResponse(204)
-
 class Delivery:
     def set_address(self, order_id: str, payload: dict) -> None:
-        if len(str(payload.get("zip", ""))) != 6:
-            raise ValueError("bad zip")
+        if len(payload["zip"]) != 6:
+            raise InvalidAddress(payload["zip"])
         ...
 
     def estimate_days(self, payload: dict) -> int:
-        if len(str(payload.get("zip", ""))) != 6:
-            raise ValueError("bad zip")
+        if len(payload["zip"]) != 6:
+            raise InvalidAddress(payload["zip"])
         ...
 ```
 
 ```python
-# Good: the handler builds an Address, and only it goes inside
-class PostalCode:
+# Good: one check, in the value object; only it goes inside
+class PostalCode:  # created means valid; does not change after creation
     def __init__(self, value: str) -> None:
         if len(value) != 6 or not value.isdigit():
             raise InvalidAddress("a postal code must be 6 digits: " + value)
         self.value = value
 
-class Address:
-    def __init__(self, postal_code: PostalCode, street: str) -> None:
-        if street.strip() == "":
-            raise InvalidAddress("empty street")
-        self.postal_code = postal_code
-        self.street = street
-
-def handle_set_address(request: HttpRequest) -> HttpResponse:
-    zip_code = request.json_string("zip")
-    street = request.json_string("street")
-    if zip_code is None or street is None:
-        return HttpResponse(400, {"error": "zip and street are required"})
-    try:
-        address = Address(PostalCode(zip_code), street)
-    except InvalidAddress as error:
-        return HttpResponse(422, {"error": str(error)})
-    delivery.set_address(request.path_param("order_id"), address)
-    return HttpResponse(204)
-
 class Delivery:
-    def set_address(self, order_id: str, address: Address) -> None: ...
-    def estimate_days(self, address: Address) -> int: ...
+    def set_address(self, order_id: str, postal_code: PostalCode) -> None: ...
+    def estimate_days(self, postal_code: PostalCode) -> int: ...
+
+# handler: builds a PostalCode from the request, answers 422 on InvalidAddress
+delivery.set_address(order_id, PostalCode(zip_from_request))
 ```
 
 ### T2. Foreign errors are translated into ours in the adapter
 
-The adapter translates an error of a library or external API into its own exception, once. Business logic sees only that exception.
+The adapter translates an error of a library or external API that the caller can react to (a refusal, an unavailable service) into its own exception, once. Business logic sees only that exception. The adapter does not touch the other errors (A2). The same holds in the opposite direction: business logic errors are translated into the response to the client (an HTTP status, an exit code, a message) by the handler, and only by it.
 
 ```python
-# Bad: the adapter lets a foreign error and a foreign response escape
-class CourierApiShipping:
-    def ship(self, parcel: Parcel) -> HttpResult:
-        return self._http.post("/v2/shipments", parcel_to_json(parcel), headers={})
-
+# Bad: a foreign response and a foreign error escape from the adapter into business logic
 class Fulfillment:
     def ship(self, order: Order) -> None:
         try:
-            result = self._shipping.ship(order.parcel())
+            result = self._shipping.ship(order.parcel())  # returns an HttpResult
         except NetworkError:
             order.postpone_shipping()
             return
@@ -514,21 +412,16 @@ class Fulfillment:
 ```
 
 ```python
-# Good
+# Good: the adapter returns the tracking number or raises its own exception
 class CourierApiShipping:
-    """Adapter to the courier service API."""
-
-    def __init__(self, http: HttpClient) -> None:
-        self._http = http
-
+    # Hands the parcel to the courier, returns the tracking number. Failure or refusal -> ShippingUnavailable.
     def ship(self, parcel: Parcel) -> str:
-        """Hands the parcel to the courier, returns the tracking number. Failure or refusal -> ShippingUnavailable."""
         try:
             result = self._http.post("/v2/shipments", parcel_to_json(parcel), headers={})
         except NetworkError as error:
-            raise ShippingUnavailable(parcel.order_id, error)
-        if result.status != 201 or result.body is None or "tracking" not in result.body:
-            raise ShippingUnavailable(parcel.order_id)
+            raise ShippingUnavailable(error)
+        if result.status != 201:
+            raise ShippingUnavailable(result.status)
         return result.body["tracking"]
 
 class Fulfillment:
@@ -541,114 +434,57 @@ class Fulfillment:
 
 ---
 
-## A - Add a kind, not a branch
+## A - Always handle errors
 
-### A1. A new variant of behavior is a new implementation
+### A1. An error is handled or passed up
 
-A variant of behavior (a payment method, a delivery service) is a separate implementation of a common interface. The right implementation is chosen at the entry point or in the handler. Business logic has no `if`/`elif` or flags on the variant. The exception is a closed, stable set with many operations on it (order statuses): describe it as an enum and handle it completely in one owning place.
+An error must not be lost. Code either does something meaningful with it or hands it to the caller. There are no empty handlers. Catch only the error you expect and know what to do with: catching "everything" also hides the errors the author did not think of.
 
 ```python
-# Bad: every new payment method is a new branch in business logic
-class Checkout:
-    def pay(self, order: Order, method: str, card_token: str | None) -> Receipt:
-        if method == "card":
-            return self._acquirer.charge(order.total(), card_token, order.id())
-        elif method == "cash_on_delivery":
-            return Receipt.pending(order.id())
-        raise ValueError(method)
+# Bad: the error is swallowed, the receipt is not sent, and there is no trace anywhere
+try:
+    mailer.send_receipt(order)
+except Exception:
+    pass
 ```
 
 ```python
-# Good
-class PaymentMethod(Protocol):
-    def charge(self, order: Order) -> Receipt: ...
-
-class CardPayment:
-    def __init__(self, acquirer: HttpAcquirer, card_token: str) -> None:
-        self._acquirer = acquirer
-        self._card_token = card_token
-
-    def charge(self, order: Order) -> Receipt:
-        return self._acquirer.charge(order.total(), self._card_token, order.id())
-
-class CashOnDelivery:
-    def charge(self, order: Order) -> Receipt:
-        return Receipt.pending(order.id())
-
-class Checkout:
-    def pay(self, order: Order, method: PaymentMethod) -> Receipt:
-        return method.charge(order)
-
-# handler: choosing an implementation from the input is part of parsing the request
-def payment_method_from(request: HttpRequest, acquirer: HttpAcquirer) -> PaymentMethod | None:
-    method = request.json_string("method")
-    card_token = request.json_string("card_token")
-    if method == "card" and card_token is not None:
-        return CardPayment(acquirer, card_token)
-    if method == "cash_on_delivery":
-        return CashOnDelivery()
-    return None  # the handler will respond with 400
+# Good: we expect one known error and do something with it, the rest goes up
+try:
+    mailer.send_receipt(order)
+except MailUnavailable:
+    outbox.retry_later(order.id())
 ```
 
-### A2. Every implementation fulfills the whole contract
+### A2. A bug is not caught
 
-An implementation does not require more from the caller than the interface does, does not promise less, and raises no exceptions outside the contract. If an implementation cannot fulfill the contract, change the contract or split the interface.
+A bug (a broken contract, an impossible state) and a failure there is nothing to answer with (the database is down) are not turned into an ordinary result. They pass as is to the single top-level handler, which logs them and answers 500. This way a bug is visible at once and where it arose, not later in wrong data.
 
 ```python
-# Bad
-class CashOnDelivery:
-    def refund(self, receipt: Receipt) -> None:
-        raise NotImplementedError("cash cannot be refunded automatically")
+# Bad: the bug is hidden, the customer sees a zero total
+def total(order: Order) -> Money:
+    try:
+        return sum_lines(order.lines())
+    except Exception:
+        return Money.rub(0)
 ```
 
 ```python
-# Good: the contract honestly describes both outcomes
-class RefundResult(Enum):
-    REFUNDED = "refunded"
-    OPERATOR_TASK_CREATED = "operator_task_created"
-
-class PaymentMethod(Protocol):
-    def refund(self, receipt: Receipt) -> RefundResult:
-        """Returns the money right away or creates a task for an operator."""
-        ...
-
-class CashOnDelivery:
-    def __init__(self, tasks: OperatorTasks) -> None:
-        self._tasks = tasks
-
-    def refund(self, receipt: Receipt) -> RefundResult:
-        self._tasks.return_cash(receipt)
-        return RefundResult.OPERATOR_TASK_CREATED
+# Good: if sum_lines has a bug, the request fails and the log has the cause
+def total(order: Order) -> Money:
+    return sum_lines(order.lines())
 ```
 
-### A3. Composition over inheritance
-
-Reuse someone else's behavior by holding the object in a field and calling it. Inherit from a class only when the subclass fully fulfills the parent's contract and the parent is designed for inheritance.
+Three kinds of errors in one call:
 
 ```python
-# Bad: a list subclass gets append, extend, insert that bypass add
-class OrderLines(list):
-    def add(self, line: OrderLine) -> None:
-        for existing in self:
-            if existing.sku == line.sku:
-                existing.quantity += line.quantity
-                return
-        self.append(line)
-
-lines.extend([line_a, line_a])  # one item is now in two lines
-```
-
-```python
-# Good
-class OrderLines:
-    def __init__(self) -> None:
-        self._quantities: dict[str, int] = {}
-
-    def add(self, sku: str, quantity: int) -> None:
-        self._quantities[sku] = self._quantities.get(sku, 0) + quantity
-
-    def quantity_of(self, sku: str) -> int:
-        return self._quantities.get(sku, 0)
+def ship(self, order: Order) -> None:
+    try:
+        tracking = self._shipping.ship(order.parcel())
+    except ShippingUnavailable:  # expected, and we know what to do (A1); the adapter made it ours (T2)
+        order.postpone_shipping()
+        return
+    order.ship(tracking)  # a bug or a database that is down is not caught here and goes up (A2)
 ```
 
 ---
@@ -657,21 +493,53 @@ class OrderLines:
 
 ### N1. Only what is needed now
 
-Do not add features, parameters, settings or extension points the current task does not require. "Might come in handy" is not a reason. Generalize the shape of the public API (accept a parcel, not "an order of a VIP customer"), not the set of features. Think ahead only about what is expensive to change later: the format of stored data and our HTTP API for external consumers.
+Do not add features, parameters, settings or extension points the current task does not require. "Might come in handy" is not a reason. Generalize the shape of the public API, not the set of features: `ship(parcel)` fits any shipment, while `ship_vip_order(order)` has to be repeated for every new case. Think ahead only about what is expensive to change later: the format of stored data and our HTTP API for external consumers. For example, an amount is stored together with its currency from the start: adding a currency to millions of rows already written is expensive, while renaming a method is cheap.
 
 ```python
 # Bad: flexibility "for the future"
-SHIPPING_PLUGINS: dict[str, type] = {}
-
 class CourierApiShipping:
     def ship(self, parcel: Parcel, priority: int = 0, split_by_warehouse: bool = False,
-             insurance: Money | None = None, callback_url: str | None = None) -> str: ...
+             callback_url: str | None = None) -> str: ...
 ```
 
 ```python
 # Good
 class CourierApiShipping:
     def ship(self, parcel: Parcel) -> str: ...
+```
+
+### N2. An interface only where a second implementation is real
+
+Introduce an interface only when there really is more than one implementation:
+- a fake for tests;
+- a second provider or a second database;
+- several variants of behavior already now, for example payment methods;
+- a replacement that has already been decided.
+
+"Might come in handy" is not a reason. While there is one implementation, the caller depends on the class directly. When a second one appears, the interface is extracted from the existing class, and that is a mechanical change: the caller already uses only its public API. In practice the second implementation comes quickly: a use case is tested on a fake (C3), so its adapters get an interface with the first test. The incoming side needs no interface: a request from a user or an external client is taken by a handler, which calls business logic itself (T1).
+
+```python
+# Bad: an interface for the sake of a single implementation
+class DiscountPolicy(Interface):
+    def apply(self, order: Order, customer: Customer) -> Money: ...
+
+class DefaultDiscountPolicy(DiscountPolicy):  # there is no other one and none is planned
+    def apply(self, order: Order, customer: Customer) -> Money: ...
+```
+
+```python
+# Good: a plain function, called directly
+def price_after_loyalty_discount(order: Order, customer: Customer) -> Money: ...
+```
+
+```python
+# Good: PostgresOrders got a fake for tests - the interface was extracted
+class Orders(Interface):
+    def get(self, order_id: str) -> Order | None: ...
+    def save(self, order: Order) -> None: ...
+
+class PostgresOrders(Orders): ...
+class InMemoryOrders(Orders): ...
 ```
 
 ---
@@ -684,88 +552,94 @@ Everything the caller must know that is not visible from the name and types is w
 
 ```python
 # Bad: what happens when stock runs short and how to release a reservation is unknown
-def reserve(self, sku: str, quantity: int) -> bool:
-    if self._free.get(sku, 0) < quantity:
-        return False
-    self._free[sku] -= quantity
-    return True
+def reserve(self, sku: str, quantity: int) -> bool: ...
 ```
 
 ```python
 # Good
-def reserve(self, sku: str, quantity: int) -> bool:
-    """Reserves quantity units of sku for an order.
-
-    If there is not enough free stock, returns False and changes nothing.
-    The reservation is released by release() or turned into a write-off by ship().
-    """
-    if self._free.get(sku, 0) < quantity:
-        return False
-    self._free[sku] -= quantity
-    return True
+# Reserves quantity units of sku for an order.
+# If there is not enough free stock, returns False and changes nothing.
+# The reservation is released by release() or turned into a write-off by ship().
+def reserve(self, sku: str, quantity: int) -> bool: ...
 ```
 
-### C2. A test checks the contract through the public API
+### C2. Every implementation fulfills the whole contract
 
-A test calls the code the same way a caller does and checks the result. Infrastructure in a test is replaced with a fake (I2), not with mocks. A test does not check private fields or the order of internal calls.
+An implementation does not require more from the caller than the interface does, does not promise less, and raises no exceptions outside the contract. If an implementation cannot fulfill the contract, change the contract or split the interface.
+
+```python
+# Bad: the implementation refuses a part of the contract
+class CashOnDelivery(PaymentMethod):
+    def refund(self, receipt: Receipt) -> None:
+        raise NotSupported("cash cannot be refunded automatically")
+```
+
+```python
+# Good: the contract honestly describes both outcomes
+class PaymentMethod(Interface):
+    # Returns the money right away (REFUNDED) or creates a task for an operator (OPERATOR_TASK_CREATED).
+    def refund(self, receipt: Receipt) -> RefundResult: ...
+
+class CashOnDelivery(PaymentMethod):
+    def refund(self, receipt: Receipt) -> RefundResult:
+        self._tasks.return_cash(receipt)
+        return RefundResult.OPERATOR_TASK_CREATED
+```
+
+A subclass is an implementation too. Inherit from a class only when the subclass fully fulfills the parent's contract and the parent is designed for inheritance. For example, our own exceptions inherit from a common error class: that is what it exists for. Otherwise, use someone else's behavior by holding the object in a field and calling it (composition).
+
+```python
+# Bad: a list subclass gets all of its methods, and they bypass the rule of add
+class OrderLines(list):
+    def add(self, line: OrderLine) -> None: ...  # merges lines with the same sku
+
+lines.append(line)  # an inherited method: one item is now in two lines
+```
+
+```python
+# Good: the list is hidden in a field, only add is available from outside
+class OrderLines:
+    def __init__(self) -> None:
+        self._lines = []
+
+    def add(self, line: OrderLine) -> None: ...  # merges lines with the same sku
+```
+
+### C3. A test checks the contract through the public API
+
+A test calls the code the same way a caller does and checks the result. Our own code that runs fast and without external systems is not replaced in a test: `Order` and `Money` are real in a test. Infrastructure is replaced with a fake (N2), not with mocks. The fake and the real adapter are checked by the same test of the interface's contract, otherwise the fake drifts away from the real one. A test does not check private fields or the order of internal calls.
 
 ```python
 # Bad: the test is tied to the internals
 def test_place_order() -> None:
     orders = Mock()
     checkout = Checkout(orders)
-    checkout.place_order(make_cart(), make_customer())
+    checkout.place_order(cart)
     assert orders.save.was_called_once()
     assert checkout._last_order.status == "new"
 ```
 
 ```python
-# Good
-class InMemoryOrders:
-    def __init__(self) -> None:
-        self._orders: dict[str, Order] = {}
-
-    def get(self, order_id: str) -> Order | None:
-        return self._orders.get(order_id)
-
-    def save(self, order: Order) -> None:
-        self._orders[order.id()] = order
-
+# Good: the test acts like a caller and looks at the result
 def test_placed_order_is_saved_as_new() -> None:
-    orders = InMemoryOrders()
-    order_id = Checkout(orders).place_order(make_cart(), make_customer())
+    orders = InMemoryOrders()  # fake: keeps orders in memory
+    order_id = Checkout(orders).place_order(cart)
     assert orders.get(order_id).status() == OrderStatus.NEW
 ```
 
-### C3. Code without tests: first extract the decision and pin it with a test
-
-Before changing code without tests, move the business decision into a function that can be called on its own, and pin the current behavior with a test, even if it is odd. Only then change the behavior. The other principles are applied in later steps.
+So that the fake does not drift away from the real adapter, one set of checks is run on both:
 
 ```python
-# Bad: we change the condition right here and do not know what we break
-def delivery_date(order_id: str) -> datetime:
-    row = db.fetch_one("SELECT city FROM orders WHERE id = $1", [order_id])
-    days = 2 if row["city"] == "Moscow" else 5
-    if datetime.now().weekday() >= 4:
-        days += 2
-    return datetime.now() + timedelta(days=days)
-```
+def check_orders_contract(orders: Orders) -> None:
+    assert orders.get("no-such-id") is None
+    orders.save(new_order("o-1"))
+    assert orders.get("o-1").status() == OrderStatus.NEW
 
-```python
-# Good
-def delivery_date(order_id: str) -> datetime:
-    row = db.fetch_one("SELECT city FROM orders WHERE id = $1", [order_id])
-    return delivery_date_for(row["city"], datetime.now())
+def test_in_memory_orders_keep_the_contract() -> None:
+    check_orders_contract(InMemoryOrders())
 
-def delivery_date_for(city: str, ordered_at: datetime) -> datetime:
-    days = 2 if city == "Moscow" else 5
-    if ordered_at.weekday() >= 4:
-        days += 2
-    return ordered_at + timedelta(days=days)
-
-def test_friday_order_to_moscow_arrives_on_tuesday() -> None:
-    friday = datetime(2026, 11, 6, 12, 0)
-    assert delivery_date_for("Moscow", friday) == datetime(2026, 11, 10, 12, 0)
+def test_postgres_orders_keep_the_contract() -> None:  # slow: needs a real database
+    check_orders_contract(PostgresOrders(test_database()))
 ```
 
 ---
@@ -781,25 +655,24 @@ A name states the meaning in the domain, not the data type and not the internals
 def calc(o: Order, c: Customer) -> Money:
     t = o.total()
     if c.lvl > 2:
-        t = t.times(Decimal("0.95"))
+        t = t.minus_percent(5)
     return t
 ```
 
 ```python
 # Good
 GOLD_LEVEL = 3
-GOLD_DISCOUNT = Decimal("0.05")
+GOLD_DISCOUNT_PERCENT = 5
 
 def price_after_loyalty_discount(order: Order, customer: Customer) -> Money:
-    total = order.total()
     if customer.loyalty_level() >= GOLD_LEVEL:
-        return total.times(1 - GOLD_DISCOUNT)
-    return total
+        return order.total().minus_percent(GOLD_DISCOUNT_PERCENT)
+    return order.total()
 ```
 
 ### E2. The same thing is done the same way
 
-One task is solved one way across the system: the same method names, one way to say "no value" and "error". New code follows the established way. If the established way violates D, I, S or T, the new place is done right, and the discrepancy is named explicitly.
+One task is solved one way across the system: the same method names, one way to say "no value" and "error". New code follows the established way. If the established way violates another rule, new code still follows it, and the discrepancy is named explicitly: changing the architecture is decided by the team, not by the author of a single change. The exceptions are A1 and T1: new code passes errors up and validates foreign input, whatever the project's convention is.
 
 ```python
 # Bad: three adapters - three ways to say "not found"
@@ -823,6 +696,24 @@ class PostgresShipments:
 
 class PostgresOrders:
     def get(self, order_id: str) -> Order | None: ...
+```
+
+The established way matters more than the best one:
+
+```python
+# In the project all adapters raise an exception on "not found"
+class PostgresCustomers:
+    def get(self, customer_id: str) -> Customer: ...  # raises CustomerNotFound
+
+# Bad: by D2 None is more convenient, but now the project has two ways to say "not found"
+class PostgresShipments:
+    def get(self, shipment_id: str) -> Shipment | None: ...
+```
+
+```python
+# Good: the established way; the disagreement is voiced to the team, not in the code
+class PostgresShipments:
+    def get(self, shipment_id: str) -> Shipment: ...  # raises ShipmentNotFound
 ```
 
 ### E3. A comment explains only "why"
@@ -849,10 +740,10 @@ A small but complete use case: `POST /orders/{order_id}/pay` with the body `{"ca
 
 ```
 shop/
-  payments/
+  payments/           # [I2] knows nothing about orders
     receipt.py        # Receipt and payment errors (domain types)
     http_acquirer.py  # HttpAcquirer (adapter)
-  orders/
+  orders/             # [I2] knows payments, there is no reverse dependency
     order.py          # Order (entity) and its invariant
     payment.py        # OrderPayment (use case) and the interfaces it needs
     postgres.py       # PostgresOrders (adapter)
@@ -877,7 +768,7 @@ Legend
   .....     what went wrong -> what is raised -> response to the client (chosen by the handler)
 
 Foreign errors (HTTP 402, network failure, malformed JSON) are written in words:
-they never go past the adapter; our !Exception is raised instead.
+they never go past the adapter; !OurException is raised instead.
 
 ==============================================================================
 
@@ -894,6 +785,7 @@ they never go past the adapter; our !Exception is raised instead.
    |       --SELECT--> (Postgres)
    |<---- <Order o-1, 990 RUB, NEW>           table row -> Order
    |       no row -> None ................... !OrderNotFound -> 404
+   |       already PAID ..................... the order as is -> 200
    |
    |-2-> <Order>.ensure_payable()                               entity
    |       status is not NEW ................ !OrderNotPayable -> 409
@@ -919,16 +811,15 @@ they never go past the adapter; our !Exception is raised instead.
 
 ### Who depends on whom
 
-An arrow means "imports". Domain types import nothing except each other; the database and HTTP clients (`Database`, `HttpClient`) are imported only by adapters and `main.py`.
+An arrow means "imports". Domain types import nothing except each other; the database and HTTP clients (`Database`, `HttpClient`) are imported only by adapters and `main.py`. In Python and Go an adapter matches the interface without importing it; in Java, C# or Rust it names the interface explicitly, and that import also points inward.
 
 ```
 [PayOrderHandler] -------> {OrderPayment} -------> <Order>, <Receipt>
  http/pay_handler           orders/payment          orders/order, payments/receipt
                                   ^                        ^
-                                  | match the              |
+                                  | implement the          |
                                   | Orders and             |
                                   | Acquirer interfaces    |
-                                  | (no import)            |
 [PostgresOrders], [HttpAcquirer] -+------------------------+
  orders/postgres, payments/http_acquirer
 
@@ -937,19 +828,21 @@ main.py -------> everything: creates adapters and passes them to the use case
 
 ### Code
 
+A tag like `# [S2]` marks the place where a rule is visible in the code. These are notes for the reader of the document: working code does not have them.
+
 **payments/receipt.py** - payment domain types. The use case imports them, so there is nothing from infrastructure here.
 
 ```python
-@dataclass(frozen=True)
-class Receipt:
-    payment_id: str
-    amount: Money
+class Receipt:  # [S3] value object: does not change after creation
+    def __init__(self, payment_id: str, amount: Money) -> None:
+        self.payment_id = payment_id
+        self.amount = amount
 
-class PaymentDeclined(Exception):
-    """The bank refused. Retrying with the same card will not help."""
+# The bank refused. Retrying with the same card will not help.
+class PaymentDeclined(Exception): ...
 
-class PaymentUnavailable(Exception):
-    """The acquirer is unavailable. Can be retried later."""
+# The acquirer is unavailable. Can be retried later.
+class PaymentUnavailable(Exception): ...
 ```
 
 **payments/http_acquirer.py** - adapter to the acquirer. Only it knows the URL, request fields and response codes.
@@ -959,12 +852,12 @@ class HttpAcquirer:
     def __init__(self, http: HttpClient) -> None:
         self._http = http
 
+    # [D1] one call hides the whole acquirer protocol
+    # [C1] the contract is written above the method:
+    # Charges the full amount or nothing.
+    # A repeated call with the same idempotency_key does not charge again.
+    # Bank refusal -> PaymentDeclined. Network or service failure -> PaymentUnavailable.
     def charge(self, amount: Money, card_token: str, idempotency_key: str) -> Receipt:
-        """Charges the full amount or nothing.
-
-        A repeated call with the same idempotency_key does not charge again.
-        Bank refusal -> PaymentDeclined. Network or service failure -> PaymentUnavailable.
-        """
         try:
             result = self._http.post(
                 "/v1/charges",
@@ -972,12 +865,12 @@ class HttpAcquirer:
                 headers={"Idempotency-Key": idempotency_key},
             )
         except NetworkError as error:
-            raise PaymentUnavailable(error)
+            raise PaymentUnavailable(error)  # [T2] foreign error -> ours
         if result.status == 402:
             raise PaymentDeclined()
         if result.status != 200 or result.body is None or "id" not in result.body:
             raise PaymentUnavailable()
-        return Receipt(result.body["id"], amount)
+        return Receipt(result.body["id"], amount)  # [T1] foreign JSON -> our Receipt
 ```
 
 **orders/order.py** - entity. The order itself makes sure only a new order can be paid.
@@ -990,8 +883,8 @@ class OrderStatus(Enum):
 
 class OrderNotFound(Exception): ...
 
-class OrderNotPayable(Exception):
-    """The order is already paid or cancelled."""
+# The order is already paid or cancelled.
+class OrderNotPayable(Exception): ...
 
 class Order:
     def __init__(self, order_id: str, total: Money, status: OrderStatus, payment_id: str | None) -> None:
@@ -1012,6 +905,7 @@ class Order:
     def payment_id(self) -> str | None:
         return self._payment_id
 
+    # [S2] the rule "only a new order can be paid" lives only here
     def ensure_payable(self) -> None:
         if self._status != OrderStatus.NEW:
             raise OrderNotPayable(self._id)
@@ -1025,28 +919,29 @@ class Order:
 **orders/payment.py** - use case. Knows neither SQL nor HTTP. The interfaces exist because each has two implementations: the real one and a fake for tests.
 
 ```python
-class Orders(Protocol):
+class Orders(Interface):  # [N2] the interface exists because there is a second implementation - the fake
     def get(self, order_id: str) -> Order | None: ...
     def save(self, order: Order) -> None: ...
 
-class Acquirer(Protocol):
+class Acquirer(Interface):  # [D3] only what the use case uses
     def charge(self, amount: Money, card_token: str, idempotency_key: str) -> Receipt: ...
 
 class OrderPayment:
-    def __init__(self, orders: Orders, acquirer: Acquirer) -> None:
+    def __init__(self, orders: Orders, acquirer: Acquirer) -> None:  # [I1] adapters come from outside
         self._orders = orders
         self._acquirer = acquirer
 
+    # Pays for the order by card.
+    # An already paid order is returned as is, without a second charge.
+    # Errors: OrderNotFound, OrderNotPayable, PaymentDeclined, PaymentUnavailable.
     def pay(self, order_id: str, card_token: str) -> Order:
-        """Pays for the order by card.
-
-        Errors: OrderNotFound, OrderNotPayable, PaymentDeclined, PaymentUnavailable.
-        """
         order = self._orders.get(order_id)
         if order is None:
             raise OrderNotFound(order_id)
+        if order.status() == OrderStatus.PAID:
+            return order  # [D2] a retry of a request already fulfilled is success, not an error
         order.ensure_payable()
-        # The key is the order id: a retry after a failed save will not charge twice.
+        # [E3] The key is the order id: a retry after a failed save will not charge twice.
         receipt = self._acquirer.charge(order.total(), card_token, idempotency_key=order.id())
         order.mark_paid(receipt)
         self._orders.save(order)
@@ -1067,6 +962,7 @@ class PostgresOrders:
         )
         if row is None:
             return None
+        # [T1] table row -> Order
         return Order(
             row["id"],
             Money(row["total_amount"], row["currency"]),
@@ -1075,6 +971,7 @@ class PostgresOrders:
         )
 
     def save(self, order: Order) -> None:
+        # [A2] a database failure is not caught here: it will reach the top-level handler
         self._db.execute(
             "UPDATE orders SET status = $1, payment_id = $2 WHERE id = $3",
             [order.status().value, order.payment_id(), order.id()],
@@ -1084,19 +981,18 @@ class PostgresOrders:
 **http/pay_handler.py** - handler. Parses the request, calls business logic, translates its errors into HTTP statuses. Decides nothing itself.
 
 ```python
+# POST /orders/{order_id}/pay  {"card_token": "..."}
 class PayOrderHandler:
-    """POST /orders/{order_id}/pay  {"card_token": "..."}"""
-
     def __init__(self, payment: OrderPayment) -> None:
         self._payment = payment
 
     def handle(self, request: HttpRequest) -> HttpResponse:
-        card_token = request.json_string("card_token")
+        card_token = request.json_string("card_token")  # [T1] input is parsed at the boundary
         if card_token is None:
             return HttpResponse(400, {"error": "card_token is required"})
         try:
             order = self._payment.pay(request.path_param("order_id"), card_token)
-        except OrderNotFound:
+        except OrderNotFound:  # [T2] our errors -> HTTP statuses, only here
             return HttpResponse(404, {"error": "order not found"})
         except OrderNotPayable:
             return HttpResponse(409, {"error": "order is already paid or cancelled"})
@@ -1110,6 +1006,7 @@ class PayOrderHandler:
 **main.py** - entry point. The only place where adapters are created and everything is wired together. `Router` is a placeholder: any HTTP server or framework plugs in here.
 
 ```python
+# [I1] the only place where adapters are created
 db = Database(env("DATABASE_URL"))
 acquirer = HttpAcquirer(HttpClient(base_url=env("ACQUIRER_URL"), timeout_seconds=10))
 payment = OrderPayment(PostgresOrders(db), acquirer)
@@ -1122,29 +1019,31 @@ router.serve(port=8080)
 **tests/test_order_payment.py** - business logic tests on fakes, without a database or network.
 
 ```python
-class InMemoryOrders:
+class InMemoryOrders:  # [C3] fake: a working in-memory implementation, not a mock
     def __init__(self) -> None:
-        self._orders: dict[str, Order] = {}
+        self._orders = {}  # order id -> Order
 
     def get(self, order_id: str) -> Order | None:
-        return self._orders.get(order_id)
+        return copy_of(self._orders.get(order_id))
 
     def save(self, order: Order) -> None:
-        self._orders[order.id()] = order
+        # A copy, like in a real database: a change made without save() must not be visible.
+        self._orders[order.id()] = copy_of(order)
 
 class ApprovingAcquirer:
     def charge(self, amount: Money, card_token: str, idempotency_key: str) -> Receipt:
         return Receipt("pay-1", amount)
 
-class DecliningAcquirer:
+class DecliningAcquirer:  # [C2] the fake stays within the contract: raises only PaymentDeclined
     def charge(self, amount: Money, card_token: str, idempotency_key: str) -> Receipt:
         raise PaymentDeclined()
 
 def orders_with_new_order() -> InMemoryOrders:
     orders = InMemoryOrders()
-    orders.save(Order("o-1", Money(Decimal("990"), "RUB"), OrderStatus.NEW, payment_id=None))
+    orders.save(Order("o-1", Money.rub(990), OrderStatus.NEW, payment_id=None))
     return orders
 
+# [C3] the tests call pay like a caller and look at the result
 def test_paid_order_becomes_paid() -> None:
     orders = orders_with_new_order()
     OrderPayment(orders, ApprovingAcquirer()).pay("o-1", "card-token")
@@ -1156,24 +1055,58 @@ def test_declined_payment_keeps_order_new() -> None:
     expect_error(PaymentDeclined, lambda: payment.pay("o-1", "card-token"))
     assert orders.get("o-1").status() == OrderStatus.NEW
 
-def test_order_cannot_be_paid_twice() -> None:
+def test_repeated_payment_does_not_charge_again() -> None:
     orders = orders_with_new_order()
-    payment = OrderPayment(orders, ApprovingAcquirer())
-    payment.pay("o-1", "card-token")
-    expect_error(OrderNotPayable, lambda: payment.pay("o-1", "card-token"))
+    OrderPayment(orders, ApprovingAcquirer()).pay("o-1", "card-token")
+    order = OrderPayment(orders, DecliningAcquirer()).pay("o-1", "card-token")
+    assert order.status() == OrderStatus.PAID
 ```
 
-**Where DISTANCE shows up**
+---
 
-| Rule | Where you see it |
+## What the rules rest on
+
+A rule gets into the document on two grounds: the guidelines of several unrelated ecosystems state it independently, and published research does not contradict it. The opinion of a single author, even a well-known one, does not count as a ground.
+
+There are no strictly proven rules in code design. Almost all studies show a correlation, not a cause, and some effects weaken once code size is taken into account. So the "Evidence" column says only whether measurements support the rule, not that the rule is proven.
+
+| Rule | Where it is written | Evidence |
+|---|---|---|
+| D1 | C++ Core Guidelines C.3, C.9; Effective Java 15; Rust API Guidelines C-STRUCT-PRIVATE; PEP 8; .NET Design Guidelines | Files with an unstable interface contain bugs noticeably more often and change more often (Mo et al. 2019, 19 projects) |
+| D2 | Effective Java 54; .NET Design Guidelines (an empty collection instead of null); Go Code Review Comments (In-Band Errors); Azure API Guidelines and AWS Well-Architected (idempotency) | 92% of catastrophic failures in five distributed systems are incorrect handling of an explicitly reported error (Yuan et al. 2014) |
+| D3 | Go Proverbs; Google Go Style (Interfaces); C++ Core Guidelines T.41; Rust API Guidelines C-GENERIC; .NET Design Guidelines | Interfaces that clients use in parts change more often (Romano & Pinzger 2011, 10 systems) |
+| I1 | Microsoft .NET Architecture Guides (dependency inversion, persistence ignorance); Azure Architecture Center; AWS Prescriptive Guidance. Objection: Google Go Style advises against wrapping clients in your own interfaces | There are no comparative studies, so the rule is conditional |
+| I2 | C++ Core Guidelines SF.9; in Go cycles between packages are forbidden by the compiler | Components in cycles have twice as many failures (Zimmermann & Nagappan 2007, Windows Server 2003) |
+| S1 | C++ Core Guidelines ES.3; Microsoft .NET Architecture Guides; OWASP ASVS 1.1.6; Linux kernel coding style. Caveat about similar code: Go Proverbs, Google Testing Blog | Copies changed inconsistently are harmful (Juergens et al. 2009); the other copies add no bugs (Rahman et al. 2010; Kapser & Godfrey 2008) |
+| S2 | C++ Core Guidelines C.2, C.40; Effective Java 16; Rust API Guidelines C-VALIDATE; .NET Design Guidelines | There are few direct studies |
+| S3 | C++ Core Guidelines I.2, Con.1; Effective Java 17; Google Python Style; NASA/JPL Power of Ten, rule 6; Twelve-Factor App | 97% of concurrency bugs, not counting deadlocks, are a violation of atomicity or of the order of access to shared state (Lu et al. 2008) |
+| T1 | OWASP Input Validation Cheat Sheet; OWASP ASVS 5.1; SEI CERT MET00-J; The Rust Book, ch. 9; Effective Java 49; C++ Core Guidelines I.4 | Vulnerabilities from unvalidated input rank 1, 3, 5 and 7 in the CWE Top 25 for 2024 |
+| T2 | Effective Java 73; The Rust Book, ch. 9; .NET Design Guidelines; Google Go Style; Google AIP-193; C++ Core Guidelines I.10 | There are no direct studies |
+| A1 | Effective Java 77; Go Code Review Comments (Handle Errors); PEP 8 and PEP 20; .NET CA1031; SEI CERT ERR00-J | 92% of catastrophic failures in five distributed systems are incorrect handling of an explicitly reported error; in a quarter of the cases it was simply ignored (Yuan et al. 2014) |
+| A2 | Effective Java 70; The Rust Book, ch. 9; C++ Core Guidelines E.17; Go Code Review Comments (Don't Panic); .NET Design Guidelines | Catching an overly general exception is linked to bugs in some projects (de Padua & Shang 2018) |
+| N1 | Google Engineering Practices; Google Testing Blog; C++ Core Guidelines Per.7; Google Go Style (least mechanism) | Most users set only 6-17% of the configuration parameters (Xu et al. 2015) |
+| N2 | Go Code Review Comments; Google Go Style; .NET Design Guidelines; C++ Core Guidelines T.1 | There are no direct studies |
+| C1 | C++ Core Guidelines I.5, I.7; Effective Java 56, 74; Rust API Guidelines C-FAILURE; .NET Design Guidelines; Google Go Style; AWS Well-Architected | A mismatch between documentation and code can be a bug (Tan et al. 2007) |
+| C2 | C++ Core Guidelines C.120; Google C++ Style; Effective Java 10, 18, 19; .NET Design Guidelines; Go and Rust have no inheritance | Files with broken inheritance have 35-503% more bugs (Mo et al. 2019); experiments on inheritance depth contradict each other (Daly et al. 1996; Prechelt et al. 2003) |
+| C3 | Software Engineering at Google, ch. 12-13; Google Testing Blog. This is one ecosystem | 51% of changes to mocks are forced by a change in production code (Spadini et al. 2019) |
+| E1 | C++ Core Guidelines ES.45, NL.19; .NET Design Guidelines; SEI CERT DCL06-C; Linux kernel coding style | With words instead of abbreviations bugs are found 14-19% faster (Hofmeister et al. 2017; Schankin et al. 2018) |
+| E2 | PEP 8; PEP 20; Google Style Guides; C++ Core Guidelines NL.4; Software Engineering at Google, ch. 8 | Code that is unusual for its own project contains bugs more often (Ray et al. 2016) |
+| E3 | C++ Core Guidelines NL.1, NL.2; Google Style Guides; Google Engineering Practices; Linux kernel coding style | There are few direct studies |
+
+### What is not here and why
+
+| Idea | Why it is not included |
 |---|---|
-| D1 | `HttpAcquirer.charge` and `OrderPayment.pay` - one call each instead of several steps |
-| I1 | `OrderPayment` knows neither SQL nor HTTP; adapters are created only in `main.py` |
-| I2 | the `Orders` and `Acquirer` interfaces exist because each has a fake |
-| I4 | `orders` knows `payments`, and `payments` knows nothing about orders |
-| S2 | the rule "only a new order can be paid" lives in `Order` |
-| T1 | the handler validates the request body, adapters parse the table row and the acquirer response |
-| T2 | `NetworkError` and acquirer response codes become `PaymentDeclined` and `PaymentUnavailable` in the adapter; business logic errors become HTTP statuses in the handler |
-| C1 | the contract of `charge` and `pay` is written in the method documentation |
-| C2 | the tests check the result through `pay`, without mocks |
-| E3 | the only comment in business logic explains why the key is the order id |
+| Law of Demeter | one guideline and one study, the effect almost disappears once code size is taken into account |
+| Decisions apart from side effects | one guideline, no studies |
+| Polymorphism instead of branching | in experiments the simple solution is sometimes better; branching on type does not affect the number of bugs (Prechelt et al. 2001; Hall et al. 2014) |
+| Pin the behavior with a test before a change | not found in the guidelines, no studies |
+| Test before code (TDD) | the order "test before or after" does not affect the result (Fucci et al. 2017) |
+| A limit on function length | the guidelines disagree, the studies contradict each other |
+| Packages by feature, not by layer | not found in the guidelines, no comparative studies |
+
+### Sources
+
+Guidelines: [C++ Core Guidelines](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines), [Effective Java](https://www.informit.com/store/effective-java-9780134686097), [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments), [Go Proverbs](https://go-proverbs.github.io), [Google Go Style](https://google.github.io/styleguide/go/decisions), [Google C++ Style](https://google.github.io/styleguide/cppguide.html), [Google Python Style](https://google.github.io/styleguide/pyguide.html), [Google Engineering Practices](https://google.github.io/eng-practices/review/), [Software Engineering at Google](https://abseil.io/resources/swe-book), [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/checklist.html), [The Rust Book, ch. 9](https://doc.rust-lang.org/book/ch09-03-to-panic-or-not-to-panic.html), [.NET Design Guidelines](https://learn.microsoft.com/dotnet/standard/design-guidelines/), [.NET Architecture Guides](https://learn.microsoft.com/dotnet/architecture/modern-web-apps-azure/architectural-principles), [Azure Architecture Center](https://learn.microsoft.com/azure/architecture/guide/design-principles/design-for-evolution), [PEP 8](https://peps.python.org/pep-0008), [PEP 20](https://peps.python.org/pep-0020), [.NET CA1031](https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1031), [SEI CERT ERR00-J](https://cmu-sei.github.io/secure-coding-standards/sei-cert-oracle-coding-standard-for-java/rules/exceptional-behavior-err/err00-j), [OWASP Input Validation Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html), [CWE Top 25](https://cwe.mitre.org/top25/archive/2024/2024_top25_list), [Linux kernel coding style](https://kernel.org/doc/html/latest/process/coding-style.html), [Twelve-Factor App](https://12factor.net).
+
+Research: [Mo et al. 2019](https://www.cs.drexel.edu/~yc349/papers/2019/tse2019.pdf), [Yuan et al. 2014](https://gwern.net/doc/cs/algorithm/2014-yuan.pdf), [Zimmermann & Nagappan 2007](https://thomas-zimmermann.com/publications/files/zimmermann-issre-2007.pdf), [Juergens et al. 2009](https://ar5iv.labs.arxiv.org/html/1701.05472), [Rahman et al. 2010](https://www.microsoft.com/en-us/research/publication/clones-what-is-that-smell/), [Kapser & Godfrey 2008](https://cormack.uwaterloo.ca/~migod/papers/2008/emse08-ClonePatterns.pdf), [Lu et al. 2008](https://www.cs.columbia.edu/~junfeng/10fa-e6998/papers/concurrency-bugs.pdf), [Xu et al. 2015](https://cseweb.ucsd.edu/~tixu/papers/fse15.pdf), [Tan et al. 2007](https://www.cs.purdue.edu/homes/lintan/publications/icomment_sosp07.pdf), [Spadini et al. 2019](https://d-nb.info/1174174781/34), [Hofmeister et al. 2017](https://www.se.cs.uni-saarland.de/publications/docs/HoSeHo17.pdf), [Schankin et al. 2018](https://brains-on-code.github.io/descriptive-compound-identifier-names.pdf), [Ray et al. 2016](https://arxiv.org/abs/1506.01159), [Prechelt et al. 2001](https://ps.ipd.kit.edu/180_778.php), [Prechelt et al. 2003](https://ps.ipd.kit.edu/180_837.php), [Hall et al. 2014](https://uhra.herts.ac.uk/handle/2299/14912), [Fucci et al. 2017](https://arxiv.org/abs/1611.05994), [de Padua & Shang 2018](https://ece.uwaterloo.ca/~wshang/pubs/MSR2018_GUI.pdf).

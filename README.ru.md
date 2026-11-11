@@ -1,21 +1,25 @@
 # DISTANCE
 
-[English](README.md) | **Русский** | [中文](README.zh-CN.md)
+[English](README.md) | **Русский**
 
 **Держи дистанцию:** каждый кусок кода знает о других как можно меньше. Тогда код дёшево понять и безопасно изменить.
 
 | | Принцип | Суть | Правила |
 |---|---|---|---|
-| [**D**](#d---deep) | Deep | Публичный API проще внутреннего устройства | [D1](#d1-публичный-api-проще-внутреннего-устройства) [D2](#d2-меньше-особых-случаев) [D3](#d3-обращайся-к-ближайшему) [D4](#d4-каждому-вызывающему---узкий-интерфейс) |
-| [**I**](#i---inward) | Inward | Бизнес-логика не знает инфраструктуры | [I1](#i1-бизнес-логика-не-зависит-от-инфраструктуры) [I2](#i2-интерфейс---только-там-где-вторая-реализация-реальна) [I3](#i3-решение-отдельно-от-побочных-эффектов) [I4](#i4-пакеты-без-циклов) |
-| [**S**](#s---single-owner) | Single owner | У каждого знания и каждого инварианта один владелец | [S1](#s1-у-каждого-знания-один-владелец) [S2](#s2-инвариант-меняет-только-владелец) |
+| [**D**](#d---deep) | Deep | Публичный API проще внутреннего устройства | [D1](#d1-публичный-api-проще-внутреннего-устройства) [D2](#d2-меньше-особых-случаев) [D3](#d3-каждому-вызывающему---узкий-интерфейс) |
+| [**I**](#i---inward) | Inward | Зависимости направлены внутрь, к бизнес-логике | [I1](#i1-бизнес-логика-не-зависит-от-инфраструктуры) [I2](#i2-пакеты-без-циклов) |
+| [**S**](#s---single-owner) | Single owner | У знания, инварианта и состояния один владелец | [S1](#s1-у-каждого-знания-один-владелец) [S2](#s2-инвариант-меняет-только-владелец) [S3](#s3-меньше-изменяемого-состояния) |
 | [**T**](#t---translate-at-the-boundary) | Translate at the boundary | Чужие данные и ошибки переводятся в свои один раз, на границе системы | [T1](#t1-чужие-данные-разбираются-в-объекты-значения-на-границе) [T2](#t2-чужие-ошибки-переводятся-в-свои-в-адаптере) |
-| [**A**](#a---add-a-kind-not-a-branch) | Add a kind, not a branch | Новый вариант поведения - новая реализация, а не новое условие | [A1](#a1-новый-вариант-поведения---новая-реализация) [A2](#a2-каждая-реализация-выполняет-весь-контракт) [A3](#a3-композиция-вместо-наследования) |
-| [**N**](#n---needed-now) | Needed now | Только то, что нужно сейчас | [N1](#n1-только-то-что-нужно-сейчас) |
-| [**C**](#c---contract) | Contract | Контракт записан и проверен тестом | [C1](#c1-контракт-записан-в-публичном-api) [C2](#c2-тест-проверяет-контракт-через-публичный-api) [C3](#c3-код-без-тестов-сначала-вынести-решение-и-закрепить-тестом) |
+| [**A**](#a---always-handle-errors) | Always handle errors | Ошибку обрабатывают или передают выше, но не теряют | [A1](#a1-ошибку-обрабатывают-или-передают-выше) [A2](#a2-баг-не-ловят) |
+| [**N**](#n---needed-now) | Needed now | Только то, что нужно сейчас | [N1](#n1-только-то-что-нужно-сейчас) [N2](#n2-интерфейс---только-там-где-вторая-реализация-реальна) |
+| [**C**](#c---contract) | Contract | Контракт записан, выполняется и проверен тестом | [C1](#c1-контракт-записан-в-публичном-api) [C2](#c2-каждая-реализация-выполняет-весь-контракт) [C3](#c3-тест-проверяет-контракт-через-публичный-api) |
 | [**E**](#e---evident) | Evident | Код читается без сюрпризов | [E1](#e1-имя-говорит-что-это-и-зачем) [E2](#e2-одно-и-то-же-делается-одинаково) [E3](#e3-комментарий-объясняет-только-почему) |
 
-Если правило в конкретном месте делает код сложнее, а не проще, оно не применяется.
+Код сложен, когда правку приходится вносить во многих местах, когда для неё нужно многое держать в голове или когда непонятно, что ещё она сломает. Каждое правило уменьшает что-то из этих трёх. Если правило в конкретном месте делает код сложнее, а не проще, оно не применяется. Например, справочнику, который только читает и пишет строки таблицы, адаптер и отдельный слой ничего не дают (I1).
+
+Правила написаны для приложений с бизнес-логикой и вводом-выводом: сервисов, бэкендов, консольных утилит. В библиотеке, скрипте или пользовательском интерфейсе идеи те же, но обработчиков, адаптеров и сценариев там может не быть.
+
+В документ входят только правила, которые независимо записаны в руководствах нескольких экосистем и не противоречат опубликованным исследованиям. Основания каждого правила собраны в разделе [На чём стоят правила](#на-чём-стоят-правила).
 
 ---
 
@@ -38,43 +42,43 @@
 | **Обработчик** (handler) | Код, через который внешний мир обращается к нам: HTTP-эндпоинт, команда CLI, консьюмер очереди. Разбирает ввод, вызывает бизнес-логику, отдаёт ответ | `POST /orders/{id}/pay` |
 | **Граница системы** | Обработчики и адаптеры вместе: всё, где наш код встречается с внешним миром | |
 | **Внедрение зависимостей** (dependency injection) | Класс получает адаптеры через конструктор, а не создаёт их сам | `OrderPayment(orders, acquirer)` |
-| **Точка входа** (entry point, `main`) | Место запуска, где создаются адаптеры и передаются в бизнес-логику | `main.py` |
-| **Объект-значение** (value object) | Неизменяемый тип данных, который проверяет себя при создании | `PostalCode`, `Address`, `Money` |
+| **Точка входа** (entry point, `main`) | Место запуска: единственное, где читается конфигурация, создаются адаптеры и передаются в бизнес-логику | `main.py` |
+| **Доменный тип** | Тип, которым владеет бизнес-логика: сущность, объект-значение, наше исключение. Не зависит от инфраструктуры | `Order`, `Receipt`, `PaymentDeclined` |
+| **Объект-значение** (value object) | Неизменяемый тип данных, который проверяет себя при создании | `PostalCode`, `Money` |
 | **Инвариант** (invariant) | Условие, которое объект поддерживает всегда | "отгружен только оплаченный заказ" |
-| **Побочный эффект** (side effect) | Действие помимо возврата результата: запись в базу, сетевой вызов, письмо, изменение чужого объекта | `payments.refund(...)` |
-| **Чистая функция** (pure function) | Функция без побочных эффектов: результат зависит только от аргументов | `decide_return(order, lines)` |
 | **Фейк** (fake) | Простая рабочая реализация для тестов. Не путать с моком, который только проверяет вызовы | `InMemoryOrders` |
-| **Композиция** (composition) | Класс хранит другой объект и вызывает его, вместо наследования | `OrderLines` хранит словарь |
+| **Композиция** (composition) | Класс хранит другой объект и вызывает его, вместо наследования | `OrderLines` хранит список |
 
 ### Как читать примеры
 
-Принципы не зависят от языка. Примеры написаны на Python без фреймворков и особенностей языка, чтобы их читал программист на любом языке.
+Принципы не зависят от языка. Примеры записаны на Python только как на нотации: классы, методы, `if`, `for`, `raise`, `return`. Возможности, которых нет в других языках, не используются.
 
-| В примерах | В Java | В Go |
-|---|---|---|
-| `class Orders(Protocol)` | `interface Orders` | `type Orders interface` |
-| `@dataclass(frozen=True)` | `record` | `struct` без сеттеров |
-| `raise SomeError` | `throw new SomeException()` | `return ..., ErrSome` |
-| `None` | `null` / `Optional` | `nil` |
-| `"""..."""` под методом | Javadoc | комментарий над функцией |
-| `raise Ours(error)` | `throw new Ours(error)` | `fmt.Errorf("...: %w", err)` |
-| `Decimal` | `BigDecimal` | десятичный тип без ошибок округления |
+| В примерах | Что значит |
+|---|---|
+| `class Orders(Interface)` | интерфейс: только методы, без кода |
+| `class CashOnDelivery(PaymentMethod)` | класс реализует интерфейс |
+| `Order \| None` | значения может не быть |
+| `self._status` | приватное поле |
+| `raise SomeError(...)` | бросить исключение; в языке без исключений - вернуть ошибку |
+| `# ...` над методом | документация метода |
+| `...` | код опущен |
 
-Типы магазина (`Money` с методами `plus`, `times`, `is_at_least`, `Order`, `Cart` и другие) считаются уже определёнными.
+Короткий пример показывает только то, что относится к правилу: конструкторы, обработчики и остальной код опущены. Как всё собирается вместе, видно в [полном примере](#полный-пример-оплата-заказа).
+
+Типы магазина (`Order`, `Cart`, `Money` с методами `rub`, `plus`, `minus_percent`, `is_at_least` и другие) считаются уже определёнными. В языке без наследования часть C2 про наследников не нужна.
 
 Вместо конкретных библиотек и фреймворков в примерах условные типы. Они есть в любом языке под своими именами:
 
 | Условный тип | Что умеет |
 |---|---|
-| `HttpRequest`, `HttpResponse` | входящий запрос и ответ. `request.path_param(name)` - параметр пути, `request.json_string(name)` - строковое поле тела или `None`, `request.json_body()` - всё тело как словарь. `HttpResponse(status, body)` |
+| `HttpRequest`, `HttpResponse` | входящий запрос и ответ. `request.path_param(name)` - параметр пути, `request.json_string(name)` - строковое поле тела или `None`. `HttpResponse(status, body)` |
 | `HttpClient` | исходящие HTTP-запросы. `post(path, body, headers)` возвращает `HttpResult` с полями `status` и `body` (разобранный JSON или `None`). Сбой сети или таймаут -> `NetworkError` |
 | `Database` | клиент Postgres. `fetch_one(sql, params)` возвращает строку как словарь "колонка -> значение" или `None`, `execute(sql, params)` выполняет запрос |
-| `RedisClient` | клиент Redis. Методы называются как команды Redis: `hgetall`, `hset`, `hincrby`, `expire`, `delete`. `transaction()` - группа команд, которая выполняется атомарно по `exec()` (MULTI/EXEC) |
+| `RedisClient` | клиент Redis. `hgetall(key)` читает хеш целиком, `hset(key, field, value)` пишет одно поле |
 | `Router` | любой HTTP-сервер или фреймворк |
 | `Mock`, `expect_error` | мок из любой библиотеки моков; проверка, что функция бросает нужное исключение |
-| `env(name)` | переменная окружения |
-
-В коротких примерах сервисы обработчика опущены, в [полном примере](#полный-пример-оплата-заказа) видно, как они передаются.
+| `copy_of(x)` | независимая копия объекта |
+| `env(name)`, `today()` | переменная окружения; текущая дата |
 
 ---
 
@@ -93,17 +97,38 @@ payment_id = acquirer.capture(intent_id)
 ```
 
 ```python
-# Хорошо
+# Хорошо: один вызов, шаги спрятаны внутри
 class HttpAcquirer:
-    def charge(self, amount: Money, card_token: str, idempotency_key: str) -> Receipt:
-        """Списывает сумму целиком или не списывает ничего.
-
-        Повторный вызов с тем же idempotency_key возвращает тот же чек и не списывает второй раз.
-        Отказ банка -> PaymentDeclined. Сбой связи или сервиса -> PaymentUnavailable.
-        """
-        ...
+    # Списывает сумму целиком или не списывает ничего.
+    # Повторный вызов с тем же idempotency_key не списывает второй раз.
+    # Отказ банка -> PaymentDeclined. Сбой связи или сервиса -> PaymentUnavailable.
+    def charge(self, amount: Money, card_token: str, idempotency_key: str) -> Receipt: ...
 
 receipt = acquirer.charge(order.total(), card_token, idempotency_key=order.id())
+```
+
+Мелкая нарезка, которая ничего не прячет, - то же нарушение:
+
+```python
+# Плохо: чтобы понять одно правило, читают три функции
+def price(order: Order) -> Money:
+    if is_big(order):
+        return with_discount(order)
+    return order.total()
+
+def is_big(order: Order) -> bool:
+    return order.total().is_at_least(Money.rub(10000))
+
+def with_discount(order: Order) -> Money:
+    return order.total().minus_percent(10)
+```
+
+```python
+# Хорошо: правило целиком в одном месте
+def price_after_volume_discount(order: Order) -> Money:
+    if order.total().is_at_least(BIG_ORDER_FROM):
+        return order.total().minus_percent(BIG_ORDER_DISCOUNT_PERCENT)
+    return order.total()
 ```
 
 ### D2. Меньше особых случаев
@@ -116,48 +141,44 @@ class Cart:
     def remove(self, sku: str) -> None:
         if sku not in self._items:
             raise ProductNotInCart(sku)
-        del self._items[sku]
-
-try:
-    cart.remove(sku)
-except ProductNotInCart:
-    pass
+        self._items.remove(sku)
 ```
 
 ```python
-# Хорошо
+# Хорошо: ловить нечего
 class Cart:
+    # После вызова товара sku в корзине нет, был он там или нет.
     def remove(self, sku: str) -> None:
-        """После вызова товара sku в корзине нет, был он там или нет."""
         if sku in self._items:
-            del self._items[sku]
-
-cart.remove(sku)
+            self._items.remove(sku)
 ```
 
-### D3. Обращайся к ближайшему
-
-Код вызывает методы только у себя, своих параметров, своих полей и созданных им объектов. Он не ходит по цепочке через чужое внутреннее устройство. Исключения - объекты-значения и цепочные API вроде построителей запросов: у них структура и есть публичный API.
+Прятать можно только то, на что вызывающему не нужно реагировать:
 
 ```python
-# Плохо
-def loyalty_discount(order: Order) -> Decimal:
-    return order.customer().profile().loyalty().level().discount_rate()
+# Плохо: банк отказал, а pay вернулся как при успехе - неоплаченный заказ уйдёт на сборку
+def pay(self, order: Order, card_token: str) -> None:
+    try:
+        receipt = self._acquirer.charge(order.total(), card_token, order.id())
+    except PaymentDeclined:
+        return
+    order.mark_paid(receipt)
 ```
 
 ```python
-# Хорошо
-def loyalty_discount(order: Order, loyalty: Loyalty) -> Decimal:
-    return loyalty.discount_rate(order.customer_id())
+# Хорошо: отказ банка доходит до вызывающего
+def pay(self, order: Order, card_token: str) -> None:
+    receipt = self._acquirer.charge(order.total(), card_token, order.id())
+    order.mark_paid(receipt)
 ```
 
-### D4. Каждому вызывающему - узкий интерфейс
+### D3. Каждому вызывающему - узкий интерфейс
 
-Если интерфейс уже нужен (I2) и его используют разные места, каждое из них зависит только от методов, которыми пользуется. Если вызывающий код один, интерфейс не дробят.
+Если интерфейс уже нужен (N2) и его используют разные места, каждое из них зависит только от методов, которыми пользуется. Если вызывающий код один, интерфейс не дробят: пока `Orders` использует один сценарий, `get` и `save` остаются в одном интерфейсе.
 
 ```python
 # Плохо: отчёту нужен один метод, а зависит он от пяти
-class OrderStore(Protocol):
+class OrderStore(Interface):
     def get(self, order_id: str) -> Order | None: ...
     def save(self, order: Order) -> None: ...
     def delete(self, order_id: str) -> None: ...
@@ -169,14 +190,10 @@ def revenue(store: OrderStore, start: date, end: date) -> Money: ...
 
 ```python
 # Хорошо
-class PaidOrders(Protocol):
+class PaidOrders(Interface):
     def paid_between(self, start: date, end: date) -> list[Order]: ...
 
-def revenue(orders: PaidOrders, start: date, end: date) -> Money:
-    total = Money.zero("RUB")
-    for order in orders.paid_between(start, end):
-        total = total.plus(order.total())
-    return total
+def revenue(orders: PaidOrders, start: date, end: date) -> Money: ...
 ```
 
 ---
@@ -191,48 +208,24 @@ def revenue(orders: PaidOrders, start: date, end: date) -> Money:
 
 Публичный API адаптера выражен в терминах бизнеса: что сделать и с каким объектом, а не как это делает внешняя система. Бизнес-логика вызывает адаптер и не знает, какая система за ним и как с ней говорят.
 
-Адаптер передают через конструктор (внедрение зависимостей) и создают в точке входа. Инфраструктуру с одной операцией передают параметром функции.
+Адаптер передают через конструктор (внедрение зависимостей) и создают в точке входа. Инфраструктуру с одной операцией передают параметром функции: например, `is_expired(coupon, now)` получает текущее время аргументом, а не читает часы сама.
+
+Правило действует там, где есть бизнес-правила: адаптер защищает их от устройства внешней системы. Коду, который только перекладывает данные между запросом и хранилищем и ничего не решает, адаптер и отдельный слой не нужны. Например, эндпоинт админки, который показывает список городов доставки, читает таблицу прямо в обработчике. Когда появится правило ("нельзя удалить город, в который есть активные доставки"), его выносят.
 
 Например: `orders.save(order)` вместо SQL-запроса, `carts.get(customer_id)` вместо команд Redis, `shipping.ship(parcel)` вместо HTTP-вызова, `events.publish(order_paid)` вместо записи байтов в очередь, функция `now()` в параметре вместо чтения системных часов внутри правила.
 
 ```python
 # Плохо: правило "не больше 20 позиций" перемешано с ключами и командами Redis
-MAX_ITEMS = 20
-
 def add_to_cart(redis: RedisClient, customer_id: str, sku: str, quantity: int) -> None:
     key = "cart:" + customer_id
-    if redis.hlen(key) >= MAX_ITEMS and not redis.hexists(key, sku):
+    items = redis.hgetall(key)
+    if len(items) >= 20 and sku not in items:
         raise CartFull(customer_id)
-    redis.hincrby(key, sku, quantity)
-    redis.expire(key, 7 * 24 * 3600)
+    redis.hset(key, sku, int(items.get(sku, 0)) + quantity)
 ```
 
 ```python
-# Хорошо: Redis знает только адаптер, правило живёт в Cart
-CART_TTL_SECONDS = 7 * 24 * 3600
-
-class RedisCarts:
-    """Адаптер: корзина хранится в Redis как хеш "sku -> количество"."""
-
-    def __init__(self, redis: RedisClient) -> None:
-        self._redis = redis
-
-    def get(self, customer_id: str) -> Cart:
-        """Корзина покупателя. Если её ещё нет - пустая корзина."""
-        items = {}
-        for sku, quantity in self._redis.hgetall("cart:" + customer_id).items():
-            items[sku] = int(quantity)
-        return Cart(customer_id, items)
-
-    def save(self, cart: Cart) -> None:
-        key = "cart:" + cart.customer_id()
-        tx = self._redis.transaction()  # MULTI/EXEC: старая корзина и новая не смешаются
-        tx.delete(key)
-        if cart.items():
-            tx.hset(key, cart.items())
-            tx.expire(key, CART_TTL_SECONDS)
-        tx.exec()
-
+# Хорошо: правило живёт в Cart, Redis знает только адаптер
 class Shopping:
     def __init__(self, carts: RedisCarts) -> None:
         self._carts = carts
@@ -242,105 +235,17 @@ class Shopping:
         cart.add(sku, quantity)  # бросает CartFull, если позиций уже 20
         self._carts.save(cart)
 
+class RedisCarts:  # адаптер: ключи, команды и формат Redis - только здесь
+    def get(self, customer_id: str) -> Cart: ...
+    def save(self, cart: Cart) -> None: ...
+
 # main.py
 shopping = Shopping(RedisCarts(RedisClient(env("REDIS_URL"))))
 ```
 
-### I2. Интерфейс - только там, где вторая реализация реальна
+### I2. Пакеты без циклов
 
-Интерфейс вводят, только когда реализаций реально больше одной:
-- фейк для тестов;
-- второй поставщик или вторая база;
-- несколько вариантов поведения уже сейчас, например способов оплаты (A1);
-- замена, которую уже решили сделать.
-
-"Может пригодиться" - не причина. Пока реализация одна, вызывающий код зависит от класса напрямую. Когда появляется вторая, интерфейс выделяют из готового класса, и это механическая правка: вызывающий код и так пользуется только его публичным API. Наш HTTP API и пользователь интерфейса не требуют: их ввод принимает обработчик (T1).
-
-```python
-# Плохо: интерфейс для бизнес-логики с единственной реализацией
-class DiscountPolicy(Protocol):
-    def apply(self, order: Order, customer: Customer) -> Money: ...
-
-class DefaultDiscountPolicy:
-    def apply(self, order: Order, customer: Customer) -> Money: ...
-
-class Checkout:
-    def __init__(self, orders: PostgresOrders, discounts: DiscountPolicy) -> None:
-        self._orders = orders
-        self._discounts = discounts
-
-    def quote(self, order: Order, customer: Customer) -> Money:
-        return self._discounts.apply(order, customer).plus(shipping_cost(order.total()))
-```
-
-```python
-# Хорошо
-class Checkout:
-    def __init__(self, orders: PostgresOrders) -> None:
-        self._orders = orders
-
-    def quote(self, order: Order, customer: Customer) -> Money:
-        return price_after_loyalty_discount(order, customer).plus(shipping_cost(order.total()))
-```
-
-```python
-# Хорошо: появилась вторая реализация (фейк InMemoryOrders для тестов) - выделили интерфейс
-class Orders(Protocol):
-    def get(self, order_id: str) -> Order | None: ...
-    def save(self, order: Order) -> None: ...
-
-class Checkout:
-    def __init__(self, orders: Orders) -> None:
-        self._orders = orders
-```
-
-### I3. Решение отдельно от побочных эффектов
-
-Бизнес-решение вычисляет чистая функция. Побочные эффекты (оплата, письма, запись в базу) выполняет тонкий код по её результату. Изменение объектом собственного состояния в его методе побочным эффектом здесь не считается.
-
-```python
-# Плохо: решение и побочные эффекты перемешаны
-def process_return(order: Order, lines: list[OrderLine], payments: Payments, notifier: Notifier) -> None:
-    refund = Money.zero(order.currency())
-    for line in lines:
-        if line.is_final_sale():
-            notifier.item_not_returnable(order.customer_id(), line)
-        else:
-            refund = refund.plus(line.price())
-    payments.refund(order.payment_id(), refund)
-```
-
-```python
-# Хорошо
-@dataclass(frozen=True)
-class ReturnDecision:
-    refund: Money
-    rejected: list[OrderLine]
-
-def decide_return(order: Order, lines: list[OrderLine]) -> ReturnDecision:
-    refund = Money.zero(order.currency())
-    rejected = []
-    for line in lines:
-        if line.is_final_sale():
-            rejected.append(line)
-        else:
-            refund = refund.plus(line.price())
-    return ReturnDecision(refund, rejected)
-
-class Returns:
-    def __init__(self, payments: Payments, notifier: Notifier) -> None:
-        self._payments = payments
-        self._notifier = notifier
-
-    def process(self, order: Order, lines: list[OrderLine]) -> None:
-        decision = decide_return(order, lines)
-        self._payments.refund(order.payment_id(), decision.refund)
-        self._notifier.items_not_returnable(order.customer_id(), decision.rejected)
-```
-
-### I4. Пакеты без циклов
-
-Импорты между пакетами не образуют циклов. Цикл разрывают одним из двух способов: пакет описывает свой публичный API в собственных терминах и перестаёт знать о соседе, либо интерфейс переносят в пакет, который им пользуется.
+Импорты между пакетами не образуют циклов. Цикл разрывают одним из двух способов: пакет описывает свой публичный API в собственных терминах и перестаёт знать о соседе, либо интерфейс переносят в пакет, который им пользуется. Пример второго способа: `orders` должен уведомить покупателя, а `notifications` нужны данные заказа. Интерфейс `OrderNotifier` объявляют в `orders`, реализуют в `notifications`, и `orders` больше не импортирует `notifications`.
 
 ```
 # Плохо
@@ -370,30 +275,42 @@ shop/
 ```python
 # Плохо: "бесплатно от 5000" живёт в двух местах
 # orders/checkout.py
-def shipping_cost(order: Order) -> Money:
-    if order.total().amount >= Decimal("5000"):
-        return Money.zero("RUB")
-    return Money(Decimal("300"), "RUB")
+def shipping_cost(order_total: Money) -> Money:
+    if order_total.is_at_least(Money.rub(5000)):
+        return Money.rub(0)
+    return Money.rub(300)
 
 # http/cart_handler.py
-body = {"total": str(cart.total().amount), "free_shipping": cart.total().amount >= Decimal("5000")}
+free_shipping = cart.total().is_at_least(Money.rub(5000))
 ```
 
 ```python
 # Хорошо: знание принадлежит shipping/tariff.py
-FREE_SHIPPING_FROM = Money(Decimal("5000"), "RUB")
-BASE_COST = Money(Decimal("300"), "RUB")
+FREE_SHIPPING_FROM = Money.rub(5000)
 
 def ships_free(order_total: Money) -> bool:
     return order_total.is_at_least(FREE_SHIPPING_FROM)
 
 def shipping_cost(order_total: Money) -> Money:
     if ships_free(order_total):
-        return Money.zero(order_total.currency)
-    return BASE_COST
+        return Money.rub(0)
+    return Money.rub(300)
 
 # http/cart_handler.py
-body = {"total": str(cart.total().amount), "free_shipping": ships_free(cart.total())}
+free_shipping = ships_free(cart.total())
+```
+
+Похожий код - ещё не одно знание:
+
+```python
+# Плохо: два решения склеены, потому что сегодня числа совпали
+MAX_ITEMS = 20  # и позиций в корзине, и строк на странице отчёта
+```
+
+```python
+# Хорошо: лимит корзины меняет бизнес, размер страницы - дизайн отчёта
+MAX_CART_ITEMS = 20
+REPORT_PAGE_SIZE = 20
 ```
 
 ### S2. Инвариант меняет только владелец
@@ -401,35 +318,40 @@ body = {"total": str(cart.total().amount), "free_shipping": ships_free(cart.tota
 Состояние с инвариантом закрыто внутри объекта-владельца. Снаружи его меняют только методами владельца, и владелец проверяет переход. Вызывающий код говорит, что сделать, а не решает за владельца.
 
 ```python
-# Плохо: админка пишет статус напрямую, правило перехода обходится
-def handle_update_order(request: HttpRequest) -> HttpResponse:
-    order = orders.get(request.path_param("order_id"))
-    order.status = request.json_string("status")  # можно "отгрузить" неоплаченный заказ
-    orders.save(order)
-    return HttpResponse(204)
+# Плохо: статус пишут снаружи, правило перехода обходится
+order.status = OrderStatus.SHIPPED  # так можно "отгрузить" неоплаченный заказ
+orders.save(order)
 ```
 
 ```python
-# Хорошо: отдельное действие, переход проверяет Order
+# Хорошо: переход проверяет сам Order
 class Order:
     def ship(self, tracking_number: str) -> None:
         if self._status != OrderStatus.PAID:
-            raise OrderCannotBeShipped(self._id, self._status)
+            raise OrderCannotBeShipped(self._id)
         self._status = OrderStatus.SHIPPED
         self._tracking_number = tracking_number
 
-    def status(self) -> OrderStatus:
-        return self._status
+order.ship(tracking_number)
+orders.save(order)
+```
 
-def handle_ship_order(request: HttpRequest) -> HttpResponse:
-    tracking_number = request.json_string("tracking_number")
-    if tracking_number is None:
-        return HttpResponse(400, {"error": "нужен tracking_number"})
-    try:
-        fulfillment.ship(request.path_param("order_id"), tracking_number)
-    except OrderCannotBeShipped:
-        return HttpResponse(409, {"error": "отгрузить можно только оплаченный заказ"})
-    return HttpResponse(204)
+### S3. Меньше изменяемого состояния
+
+Чем меньше в программе состояния, которое можно изменить, тем меньше положений, в которых она может оказаться. Глобального изменяемого состояния нет: всё, от чего зависит результат, приходит параметром или через конструктор. Данные, которым незачем меняться, неизменяемы.
+
+```python
+# Плохо: скидку меняет любой код в любой момент, по вызову price этого не видно
+current_discount_percent = 0
+
+def price(order: Order) -> Money:
+    return order.total().minus_percent(current_discount_percent)
+```
+
+```python
+# Хорошо: всё, от чего зависит результат, видно в параметрах
+def price(order: Order, discount_percent: int) -> Money:
+    return order.total().minus_percent(discount_percent)
 ```
 
 ---
@@ -442,68 +364,44 @@ def handle_ship_order(request: HttpRequest) -> HttpResponse:
 
 ```python
 # Плохо: сырой JSON уходит в бизнес-логику, и каждая функция проверяет его заново
-def handle_set_address(request: HttpRequest) -> HttpResponse:
-    delivery.set_address(request.path_param("order_id"), request.json_body())
-    return HttpResponse(204)
-
 class Delivery:
     def set_address(self, order_id: str, payload: dict) -> None:
-        if len(str(payload.get("zip", ""))) != 6:
-            raise ValueError("bad zip")
+        if len(payload["zip"]) != 6:
+            raise InvalidAddress(payload["zip"])
         ...
 
     def estimate_days(self, payload: dict) -> int:
-        if len(str(payload.get("zip", ""))) != 6:
-            raise ValueError("bad zip")
+        if len(payload["zip"]) != 6:
+            raise InvalidAddress(payload["zip"])
         ...
 ```
 
 ```python
-# Хорошо: обработчик собирает Address, внутрь уходит только он
-class PostalCode:
+# Хорошо: проверка одна, в объекте-значении; внутрь уходит только он
+class PostalCode:  # создан - значит корректен; после создания не меняется
     def __init__(self, value: str) -> None:
         if len(value) != 6 or not value.isdigit():
             raise InvalidAddress("индекс должен состоять из 6 цифр: " + value)
         self.value = value
 
-class Address:
-    def __init__(self, postal_code: PostalCode, street: str) -> None:
-        if street.strip() == "":
-            raise InvalidAddress("пустая улица")
-        self.postal_code = postal_code
-        self.street = street
-
-def handle_set_address(request: HttpRequest) -> HttpResponse:
-    zip_code = request.json_string("zip")
-    street = request.json_string("street")
-    if zip_code is None or street is None:
-        return HttpResponse(400, {"error": "нужны zip и street"})
-    try:
-        address = Address(PostalCode(zip_code), street)
-    except InvalidAddress as error:
-        return HttpResponse(422, {"error": str(error)})
-    delivery.set_address(request.path_param("order_id"), address)
-    return HttpResponse(204)
-
 class Delivery:
-    def set_address(self, order_id: str, address: Address) -> None: ...
-    def estimate_days(self, address: Address) -> int: ...
+    def set_address(self, order_id: str, postal_code: PostalCode) -> None: ...
+    def estimate_days(self, postal_code: PostalCode) -> int: ...
+
+# обработчик: строит PostalCode из запроса, на InvalidAddress отвечает 422
+delivery.set_address(order_id, PostalCode(zip_from_request))
 ```
 
 ### T2. Чужие ошибки переводятся в свои в адаптере
 
-Ошибку библиотеки или внешнего API адаптер один раз переводит в собственное исключение. Бизнес-логика видит только его.
+Ошибку библиотеки или внешнего API, на которую вызывающий код может отреагировать (отказ, недоступность сервиса), адаптер один раз переводит в собственное исключение. Бизнес-логика видит только его. Остальные ошибки адаптер не трогает (A2). В обратную сторону так же: ошибки бизнес-логики в ответ клиенту (HTTP-статус, код выхода, сообщение) переводит обработчик, и только он.
 
 ```python
-# Плохо: адаптер пропускает наружу чужую ошибку и чужой ответ
-class CourierApiShipping:
-    def ship(self, parcel: Parcel) -> HttpResult:
-        return self._http.post("/v2/shipments", parcel_to_json(parcel), headers={})
-
+# Плохо: чужой ответ и чужая ошибка выходят из адаптера в бизнес-логику
 class Fulfillment:
     def ship(self, order: Order) -> None:
         try:
-            result = self._shipping.ship(order.parcel())
+            result = self._shipping.ship(order.parcel())  # возвращает HttpResult
         except NetworkError:
             order.postpone_shipping()
             return
@@ -514,21 +412,16 @@ class Fulfillment:
 ```
 
 ```python
-# Хорошо
+# Хорошо: адаптер возвращает трек-номер или бросает своё исключение
 class CourierApiShipping:
-    """Адаптер к API курьерской службы."""
-
-    def __init__(self, http: HttpClient) -> None:
-        self._http = http
-
+    # Передаёт посылку курьеру, возвращает трек-номер. Сбой или отказ -> ShippingUnavailable.
     def ship(self, parcel: Parcel) -> str:
-        """Передаёт посылку курьеру, возвращает трек-номер. Сбой или отказ -> ShippingUnavailable."""
         try:
             result = self._http.post("/v2/shipments", parcel_to_json(parcel), headers={})
         except NetworkError as error:
-            raise ShippingUnavailable(parcel.order_id, error)
-        if result.status != 201 or result.body is None or "tracking" not in result.body:
-            raise ShippingUnavailable(parcel.order_id)
+            raise ShippingUnavailable(error)
+        if result.status != 201:
+            raise ShippingUnavailable(result.status)
         return result.body["tracking"]
 
 class Fulfillment:
@@ -541,114 +434,57 @@ class Fulfillment:
 
 ---
 
-## A - Add a kind, not a branch
+## A - Always handle errors
 
-### A1. Новый вариант поведения - новая реализация
+### A1. Ошибку обрабатывают или передают выше
 
-Вариант поведения (способ оплаты, служба доставки) - это отдельная реализация общего интерфейса. Нужную реализацию выбирают в точке входа или в обработчике. В бизнес-логике нет `if`/`elif` и флагов по варианту. Исключение - закрытый стабильный набор, над которым много операций (статусы заказа): его описывают перечислением (enum) и полностью разбирают в одном месте-владельце.
+Ошибку нельзя потерять. Код либо делает с ней что-то осмысленное, либо отдаёт её вызывающему. Пустых обработчиков нет. Ловят только ту ошибку, которую ждут и с которой знают, что делать: перехват "всего подряд" прячет и ошибки, о которых автор не думал.
 
 ```python
-# Плохо: каждый новый способ оплаты - новая ветка в бизнес-логике
-class Checkout:
-    def pay(self, order: Order, method: str, card_token: str | None) -> Receipt:
-        if method == "card":
-            return self._acquirer.charge(order.total(), card_token, order.id())
-        elif method == "cash_on_delivery":
-            return Receipt.pending(order.id())
-        raise ValueError(method)
+# Плохо: ошибка проглочена, чек не отправлен, и следа нигде нет
+try:
+    mailer.send_receipt(order)
+except Exception:
+    pass
 ```
 
 ```python
-# Хорошо
-class PaymentMethod(Protocol):
-    def charge(self, order: Order) -> Receipt: ...
-
-class CardPayment:
-    def __init__(self, acquirer: HttpAcquirer, card_token: str) -> None:
-        self._acquirer = acquirer
-        self._card_token = card_token
-
-    def charge(self, order: Order) -> Receipt:
-        return self._acquirer.charge(order.total(), self._card_token, order.id())
-
-class CashOnDelivery:
-    def charge(self, order: Order) -> Receipt:
-        return Receipt.pending(order.id())
-
-class Checkout:
-    def pay(self, order: Order, method: PaymentMethod) -> Receipt:
-        return method.charge(order)
-
-# обработчик: выбор реализации по вводу - это разбор запроса
-def payment_method_from(request: HttpRequest, acquirer: HttpAcquirer) -> PaymentMethod | None:
-    method = request.json_string("method")
-    card_token = request.json_string("card_token")
-    if method == "card" and card_token is not None:
-        return CardPayment(acquirer, card_token)
-    if method == "cash_on_delivery":
-        return CashOnDelivery()
-    return None  # обработчик ответит 400
+# Хорошо: ждём одну известную ошибку и что-то с ней делаем, остальное уходит выше
+try:
+    mailer.send_receipt(order)
+except MailUnavailable:
+    outbox.retry_later(order.id())
 ```
 
-### A2. Каждая реализация выполняет весь контракт
+### A2. Баг не ловят
 
-Реализация не требует от вызывающего кода больше, чем интерфейс, не обещает меньше и не бросает исключений вне контракта. Если реализация не может выполнить контракт, меняют контракт или делят интерфейс.
+Баг (нарушенный контракт, невозможное состояние) и сбой, на который нечем ответить (база недоступна), не превращают в обычный результат. Они как есть доходят до единого верхнего обработчика, который пишет их в лог и отвечает 500. Так баг виден сразу и там, где возник, а не позже в неверных данных.
 
 ```python
-# Плохо
-class CashOnDelivery:
-    def refund(self, receipt: Receipt) -> None:
-        raise NotImplementedError("наличные автоматически не возвращаются")
+# Плохо: баг спрятан, покупатель видит нулевую сумму
+def total(order: Order) -> Money:
+    try:
+        return sum_lines(order.lines())
+    except Exception:
+        return Money.rub(0)
 ```
 
 ```python
-# Хорошо: контракт честно описывает оба исхода
-class RefundResult(Enum):
-    REFUNDED = "refunded"
-    OPERATOR_TASK_CREATED = "operator_task_created"
-
-class PaymentMethod(Protocol):
-    def refund(self, receipt: Receipt) -> RefundResult:
-        """Возвращает деньги сразу или ставит задачу оператору."""
-        ...
-
-class CashOnDelivery:
-    def __init__(self, tasks: OperatorTasks) -> None:
-        self._tasks = tasks
-
-    def refund(self, receipt: Receipt) -> RefundResult:
-        self._tasks.return_cash(receipt)
-        return RefundResult.OPERATOR_TASK_CREATED
+# Хорошо: если в sum_lines баг, запрос упадёт, а в логе будет причина
+def total(order: Order) -> Money:
+    return sum_lines(order.lines())
 ```
 
-### A3. Композиция вместо наследования
-
-Чужое поведение используют, храня объект в поле и вызывая его. Наследовать класс можно, только когда наследник полностью выполняет контракт родителя, а родитель создан для наследования.
+Три вида ошибок в одном вызове:
 
 ```python
-# Плохо: наследник списка получает append, extend, insert в обход add
-class OrderLines(list):
-    def add(self, line: OrderLine) -> None:
-        for existing in self:
-            if existing.sku == line.sku:
-                existing.quantity += line.quantity
-                return
-        self.append(line)
-
-lines.extend([line_a, line_a])  # одна позиция теперь в двух строках
-```
-
-```python
-# Хорошо
-class OrderLines:
-    def __init__(self) -> None:
-        self._quantities: dict[str, int] = {}
-
-    def add(self, sku: str, quantity: int) -> None:
-        self._quantities[sku] = self._quantities.get(sku, 0) + quantity
-
-    def quantity_of(self, sku: str) -> int:
-        return self._quantities.get(sku, 0)
+def ship(self, order: Order) -> None:
+    try:
+        tracking = self._shipping.ship(order.parcel())
+    except ShippingUnavailable:  # её ждут и знают, что делать (A1); своей её сделал адаптер (T2)
+        order.postpone_shipping()
+        return
+    order.ship(tracking)  # баг или упавшая база здесь не ловятся и уходят выше (A2)
 ```
 
 ---
@@ -657,21 +493,53 @@ class OrderLines:
 
 ### N1. Только то, что нужно сейчас
 
-Не добавляют возможностей, параметров, настроек и точек расширения, которых не требует текущая задача. "Может пригодиться" - не причина. Обобщают форму публичного API (принять посылку, а не "заказ VIP-клиента"), а не набор возможностей. Заранее продумывают только то, что дорого изменить потом: формат хранимых данных и наш HTTP API для внешних потребителей.
+Не добавляют возможностей, параметров, настроек и точек расширения, которых не требует текущая задача. "Может пригодиться" - не причина. Обобщают форму публичного API, а не набор возможностей: `ship(parcel)` подходит любому отправлению, а `ship_vip_order(order)` придётся повторять для каждого нового случая. Заранее продумывают только то, что дорого изменить потом: формат хранимых данных и наш HTTP API для внешних потребителей. Например, сумму сразу хранят вместе с валютой: добавить валюту в миллионы уже записанных строк дорого, а переименовать метод дёшево.
 
 ```python
 # Плохо: гибкость "на будущее"
-SHIPPING_PLUGINS: dict[str, type] = {}
-
 class CourierApiShipping:
     def ship(self, parcel: Parcel, priority: int = 0, split_by_warehouse: bool = False,
-             insurance: Money | None = None, callback_url: str | None = None) -> str: ...
+             callback_url: str | None = None) -> str: ...
 ```
 
 ```python
 # Хорошо
 class CourierApiShipping:
     def ship(self, parcel: Parcel) -> str: ...
+```
+
+### N2. Интерфейс - только там, где вторая реализация реальна
+
+Интерфейс вводят, только когда реализаций реально больше одной:
+- фейк для тестов;
+- второй поставщик или вторая база;
+- несколько вариантов поведения уже сейчас, например способов оплаты;
+- замена, которую уже решили сделать.
+
+"Может пригодиться" - не причина. Пока реализация одна, вызывающий код зависит от класса напрямую. Когда появляется вторая, интерфейс выделяют из готового класса, и это механическая правка: вызывающий код и так пользуется только его публичным API. На практике вторая реализация появляется быстро: сценарий тестируют на фейке (C3), поэтому его адаптеры получают интерфейс с первым тестом. Входящей стороне интерфейс не нужен: запрос пользователя или внешнего клиента принимает обработчик и сам вызывает бизнес-логику (T1).
+
+```python
+# Плохо: интерфейс ради единственной реализации
+class DiscountPolicy(Interface):
+    def apply(self, order: Order, customer: Customer) -> Money: ...
+
+class DefaultDiscountPolicy(DiscountPolicy):  # другой нет и не планируется
+    def apply(self, order: Order, customer: Customer) -> Money: ...
+```
+
+```python
+# Хорошо: обычная функция, её вызывают напрямую
+def price_after_loyalty_discount(order: Order, customer: Customer) -> Money: ...
+```
+
+```python
+# Хорошо: у PostgresOrders появился фейк для тестов - интерфейс выделили
+class Orders(Interface):
+    def get(self, order_id: str) -> Order | None: ...
+    def save(self, order: Order) -> None: ...
+
+class PostgresOrders(Orders): ...
+class InMemoryOrders(Orders): ...
 ```
 
 ---
@@ -684,88 +552,94 @@ class CourierApiShipping:
 
 ```python
 # Плохо: что будет при нехватке и как снять резерв - неизвестно
-def reserve(self, sku: str, quantity: int) -> bool:
-    if self._free.get(sku, 0) < quantity:
-        return False
-    self._free[sku] -= quantity
-    return True
+def reserve(self, sku: str, quantity: int) -> bool: ...
 ```
 
 ```python
 # Хорошо
-def reserve(self, sku: str, quantity: int) -> bool:
-    """Резервирует quantity единиц sku под заказ.
-
-    Если свободного остатка не хватает, возвращает False и ничего не меняет.
-    Резерв снимает release() или превращает в списание ship().
-    """
-    if self._free.get(sku, 0) < quantity:
-        return False
-    self._free[sku] -= quantity
-    return True
+# Резервирует quantity единиц sku под заказ.
+# Если свободного остатка не хватает, возвращает False и ничего не меняет.
+# Резерв снимает release() или превращает в списание ship().
+def reserve(self, sku: str, quantity: int) -> bool: ...
 ```
 
-### C2. Тест проверяет контракт через публичный API
+### C2. Каждая реализация выполняет весь контракт
 
-Тест вызывает код так же, как вызывающий код, и проверяет результат. Инфраструктуру в тесте заменяют фейком (I2), а не моками. Приватные поля и порядок внутренних вызовов тест не проверяет.
+Реализация не требует от вызывающего кода больше, чем интерфейс, не обещает меньше и не бросает исключений вне контракта. Если реализация не может выполнить контракт, меняют контракт или делят интерфейс.
+
+```python
+# Плохо: реализация отказывается от части контракта
+class CashOnDelivery(PaymentMethod):
+    def refund(self, receipt: Receipt) -> None:
+        raise NotSupported("наличные автоматически не возвращаются")
+```
+
+```python
+# Хорошо: контракт честно описывает оба исхода
+class PaymentMethod(Interface):
+    # Возвращает деньги сразу (REFUNDED) или ставит задачу оператору (OPERATOR_TASK_CREATED).
+    def refund(self, receipt: Receipt) -> RefundResult: ...
+
+class CashOnDelivery(PaymentMethod):
+    def refund(self, receipt: Receipt) -> RefundResult:
+        self._tasks.return_cash(receipt)
+        return RefundResult.OPERATOR_TASK_CREATED
+```
+
+Наследник - тоже реализация. Наследовать класс можно, только когда наследник полностью выполняет контракт родителя, а родитель создан для наследования. Например, свои исключения наследуют от общего класса ошибок: он для этого и существует. Иначе чужое поведение используют, храня объект в поле и вызывая его (композиция).
+
+```python
+# Плохо: наследник списка получает все его методы, и они обходят правило add
+class OrderLines(list):
+    def add(self, line: OrderLine) -> None: ...  # склеивает строки с одинаковым sku
+
+lines.append(line)  # унаследованный метод: одна позиция теперь в двух строках
+```
+
+```python
+# Хорошо: список спрятан в поле, снаружи доступен только add
+class OrderLines:
+    def __init__(self) -> None:
+        self._lines = []
+
+    def add(self, line: OrderLine) -> None: ...  # склеивает строки с одинаковым sku
+```
+
+### C3. Тест проверяет контракт через публичный API
+
+Тест вызывает код так же, как вызывающий код, и проверяет результат. Свой код, который работает быстро и без внешних систем, в тесте не подменяют: `Order` и `Money` в тесте настоящие. Инфраструктуру заменяют фейком (N2), а не моками. Фейк и настоящий адаптер проверяют одним и тем же тестом контракта интерфейса, иначе фейк расходится с настоящим. Приватные поля и порядок внутренних вызовов тест не проверяет.
 
 ```python
 # Плохо: тест привязан к внутреннему устройству
 def test_place_order() -> None:
     orders = Mock()
     checkout = Checkout(orders)
-    checkout.place_order(make_cart(), make_customer())
+    checkout.place_order(cart)
     assert orders.save.was_called_once()
     assert checkout._last_order.status == "new"
 ```
 
 ```python
-# Хорошо
-class InMemoryOrders:
-    def __init__(self) -> None:
-        self._orders: dict[str, Order] = {}
-
-    def get(self, order_id: str) -> Order | None:
-        return self._orders.get(order_id)
-
-    def save(self, order: Order) -> None:
-        self._orders[order.id()] = order
-
+# Хорошо: тест действует как вызывающий код и смотрит на результат
 def test_placed_order_is_saved_as_new() -> None:
-    orders = InMemoryOrders()
-    order_id = Checkout(orders).place_order(make_cart(), make_customer())
+    orders = InMemoryOrders()  # фейк: хранит заказы в памяти
+    order_id = Checkout(orders).place_order(cart)
     assert orders.get(order_id).status() == OrderStatus.NEW
 ```
 
-### C3. Код без тестов: сначала вынести решение и закрепить тестом
-
-Прежде чем менять код без тестов, бизнес-решение выносят в функцию, которую можно вызвать отдельно, и тестом фиксируют текущее поведение, даже странное. Только потом меняют поведение. Остальные принципы применяют следующими шагами.
+Чтобы фейк не разошёлся с настоящим адаптером, один набор проверок запускают на обоих:
 
 ```python
-# Плохо: правим условие прямо здесь и не знаем, что ломаем
-def delivery_date(order_id: str) -> datetime:
-    row = db.fetch_one("SELECT city FROM orders WHERE id = $1", [order_id])
-    days = 2 if row["city"] == "Москва" else 5
-    if datetime.now().weekday() >= 4:
-        days += 2
-    return datetime.now() + timedelta(days=days)
-```
+def check_orders_contract(orders: Orders) -> None:
+    assert orders.get("no-such-id") is None
+    orders.save(new_order("o-1"))
+    assert orders.get("o-1").status() == OrderStatus.NEW
 
-```python
-# Хорошо
-def delivery_date(order_id: str) -> datetime:
-    row = db.fetch_one("SELECT city FROM orders WHERE id = $1", [order_id])
-    return delivery_date_for(row["city"], datetime.now())
+def test_in_memory_orders_keep_the_contract() -> None:
+    check_orders_contract(InMemoryOrders())
 
-def delivery_date_for(city: str, ordered_at: datetime) -> datetime:
-    days = 2 if city == "Москва" else 5
-    if ordered_at.weekday() >= 4:
-        days += 2
-    return ordered_at + timedelta(days=days)
-
-def test_friday_order_to_moscow_arrives_on_tuesday() -> None:
-    friday = datetime(2026, 11, 6, 12, 0)
-    assert delivery_date_for("Москва", friday) == datetime(2026, 11, 10, 12, 0)
+def test_postgres_orders_keep_the_contract() -> None:  # медленный: нужна настоящая база
+    check_orders_contract(PostgresOrders(test_database()))
 ```
 
 ---
@@ -781,25 +655,24 @@ def test_friday_order_to_moscow_arrives_on_tuesday() -> None:
 def calc(o: Order, c: Customer) -> Money:
     t = o.total()
     if c.lvl > 2:
-        t = t.times(Decimal("0.95"))
+        t = t.minus_percent(5)
     return t
 ```
 
 ```python
 # Хорошо
 GOLD_LEVEL = 3
-GOLD_DISCOUNT = Decimal("0.05")
+GOLD_DISCOUNT_PERCENT = 5
 
 def price_after_loyalty_discount(order: Order, customer: Customer) -> Money:
-    total = order.total()
     if customer.loyalty_level() >= GOLD_LEVEL:
-        return total.times(1 - GOLD_DISCOUNT)
-    return total
+        return order.total().minus_percent(GOLD_DISCOUNT_PERCENT)
+    return order.total()
 ```
 
 ### E2. Одно и то же делается одинаково
 
-Одна задача решается в системе одним способом: одинаковые имена методов, один способ сказать "нет значения" и "ошибка". Новый код следует принятому способу. Если принятый способ нарушает D, I, S или T, новое место делают правильно, а расхождение называют явно.
+Одна задача решается в системе одним способом: одинаковые имена методов, один способ сказать "нет значения" и "ошибка". Новый код следует принятому способу. Если принятый способ нарушает другое правило, новый код всё равно следует ему, а расхождение называют явно: менять архитектуру решает команда, а не автор одной правки. Исключения - A1 и T1: новый код передаёт ошибки выше и проверяет чужой ввод, как бы ни было принято в проекте.
 
 ```python
 # Плохо: три адаптера - три способа сказать "не найдено"
@@ -823,6 +696,24 @@ class PostgresShipments:
 
 class PostgresOrders:
     def get(self, order_id: str) -> Order | None: ...
+```
+
+Принятый способ важнее лучшего:
+
+```python
+# В проекте все адаптеры на "не найдено" бросают исключение
+class PostgresCustomers:
+    def get(self, customer_id: str) -> Customer: ...  # бросает CustomerNotFound
+
+# Плохо: по D2 удобнее None, но теперь в проекте два способа сказать "не найдено"
+class PostgresShipments:
+    def get(self, shipment_id: str) -> Shipment | None: ...
+```
+
+```python
+# Хорошо: как принято; несогласие высказано команде, а не в коде
+class PostgresShipments:
+    def get(self, shipment_id: str) -> Shipment: ...  # бросает ShipmentNotFound
 ```
 
 ### E3. Комментарий объясняет только "почему"
@@ -849,10 +740,10 @@ RESERVATION_TTL_SECONDS = 30 * 60
 
 ```
 shop/
-  payments/
+  payments/           # [I2] о заказах не знает
     receipt.py        # Receipt и ошибки оплаты (доменные типы)
     http_acquirer.py  # HttpAcquirer (адаптер)
-  orders/
+  orders/             # [I2] знает payments, обратной зависимости нет
     order.py          # Order (сущность) и его инвариант
     payment.py        # OrderPayment (сценарий) и интерфейсы, которые ему нужны
     postgres.py       # PostgresOrders (адаптер)
@@ -894,6 +785,7 @@ tests/
    |       --SELECT--> (Postgres)
    |<---- <Order o-1, 990 RUB, NEW>           строка таблицы -> Order
    |       нет строки -> None ............... !OrderNotFound -> 404
+   |       уже PAID ......................... заказ как есть -> 200
    |
    |-2-> <Order>.ensure_payable()                               сущность
    |       статус не NEW .................... !OrderNotPayable -> 409
@@ -919,16 +811,15 @@ tests/
 
 ### Кто от кого зависит
 
-Стрелка - "импортирует". Доменные типы не импортируют ничего, кроме друг друга; клиенты базы и HTTP (`Database`, `HttpClient`) импортируют только адаптеры и `main.py`.
+Стрелка - "импортирует". Доменные типы не импортируют ничего, кроме друг друга; клиенты базы и HTTP (`Database`, `HttpClient`) импортируют только адаптеры и `main.py`. В Python и Go адаптер соответствует интерфейсу, не импортируя его; в Java, C# или Rust он называет интерфейс явно, и этот импорт тоже направлен внутрь.
 
 ```
 [PayOrderHandler] -------> {OrderPayment} -------> <Order>, <Receipt>
  http/pay_handler           orders/payment          orders/order, payments/receipt
                                   ^                        ^
-                                  | соответствуют          |
-                                  | интерфейсам Orders     |
+                                  | реализуют              |
+                                  | интерфейсы Orders      |
                                   | и Acquirer             |
-                                  | (без импорта)          |
 [PostgresOrders], [HttpAcquirer] -+------------------------+
  orders/postgres, payments/http_acquirer
 
@@ -937,19 +828,21 @@ main.py -------> всё: создаёт адаптеры и передаёт и�
 
 ### Код
 
+Метка вида `# [S2]` показывает место, где в коде видно правило. Это пометки для читателя документа: в рабочем коде их нет.
+
 **payments/receipt.py** - доменные типы оплаты. Их импортирует сценарий, поэтому здесь нет ничего из инфраструктуры.
 
 ```python
-@dataclass(frozen=True)
-class Receipt:
-    payment_id: str
-    amount: Money
+class Receipt:  # [S3] объект-значение: после создания не меняется
+    def __init__(self, payment_id: str, amount: Money) -> None:
+        self.payment_id = payment_id
+        self.amount = amount
 
-class PaymentDeclined(Exception):
-    """Банк отказал. Повтор с той же картой не поможет."""
+# Банк отказал. Повтор с той же картой не поможет.
+class PaymentDeclined(Exception): ...
 
-class PaymentUnavailable(Exception):
-    """Эквайринг недоступен. Можно повторить позже."""
+# Эквайринг недоступен. Можно повторить позже.
+class PaymentUnavailable(Exception): ...
 ```
 
 **payments/http_acquirer.py** - адаптер к эквайрингу. Только он знает URL, поля запроса и коды ответов.
@@ -959,12 +852,12 @@ class HttpAcquirer:
     def __init__(self, http: HttpClient) -> None:
         self._http = http
 
+    # [D1] один вызов прячет весь протокол эквайринга
+    # [C1] контракт записан над методом:
+    # Списывает сумму целиком или не списывает ничего.
+    # Повторный вызов с тем же idempotency_key не списывает второй раз.
+    # Отказ банка -> PaymentDeclined. Сбой связи или сервиса -> PaymentUnavailable.
     def charge(self, amount: Money, card_token: str, idempotency_key: str) -> Receipt:
-        """Списывает сумму целиком или не списывает ничего.
-
-        Повторный вызов с тем же idempotency_key не списывает второй раз.
-        Отказ банка -> PaymentDeclined. Сбой связи или сервиса -> PaymentUnavailable.
-        """
         try:
             result = self._http.post(
                 "/v1/charges",
@@ -972,12 +865,12 @@ class HttpAcquirer:
                 headers={"Idempotency-Key": idempotency_key},
             )
         except NetworkError as error:
-            raise PaymentUnavailable(error)
+            raise PaymentUnavailable(error)  # [T2] чужая ошибка -> наша
         if result.status == 402:
             raise PaymentDeclined()
         if result.status != 200 or result.body is None or "id" not in result.body:
             raise PaymentUnavailable()
-        return Receipt(result.body["id"], amount)
+        return Receipt(result.body["id"], amount)  # [T1] чужой JSON -> наш Receipt
 ```
 
 **orders/order.py** - сущность. Заказ сам следит, что оплатить можно только новый заказ.
@@ -990,8 +883,8 @@ class OrderStatus(Enum):
 
 class OrderNotFound(Exception): ...
 
-class OrderNotPayable(Exception):
-    """Заказ уже оплачен или отменён."""
+# Заказ уже оплачен или отменён.
+class OrderNotPayable(Exception): ...
 
 class Order:
     def __init__(self, order_id: str, total: Money, status: OrderStatus, payment_id: str | None) -> None:
@@ -1012,6 +905,7 @@ class Order:
     def payment_id(self) -> str | None:
         return self._payment_id
 
+    # [S2] правило "оплатить можно только новый заказ" живёт только здесь
     def ensure_payable(self) -> None:
         if self._status != OrderStatus.NEW:
             raise OrderNotPayable(self._id)
@@ -1025,28 +919,29 @@ class Order:
 **orders/payment.py** - сценарий. Не знает ни SQL, ни HTTP. Интерфейсы есть, потому что у каждого по две реализации: настоящая и фейк для тестов.
 
 ```python
-class Orders(Protocol):
+class Orders(Interface):  # [N2] интерфейс есть, потому что есть вторая реализация - фейк
     def get(self, order_id: str) -> Order | None: ...
     def save(self, order: Order) -> None: ...
 
-class Acquirer(Protocol):
+class Acquirer(Interface):  # [D3] только то, чем пользуется сценарий
     def charge(self, amount: Money, card_token: str, idempotency_key: str) -> Receipt: ...
 
 class OrderPayment:
-    def __init__(self, orders: Orders, acquirer: Acquirer) -> None:
+    def __init__(self, orders: Orders, acquirer: Acquirer) -> None:  # [I1] адаптеры приходят снаружи
         self._orders = orders
         self._acquirer = acquirer
 
+    # Оплачивает заказ картой.
+    # Уже оплаченный заказ возвращается как есть, без повторного списания.
+    # Ошибки: OrderNotFound, OrderNotPayable, PaymentDeclined, PaymentUnavailable.
     def pay(self, order_id: str, card_token: str) -> Order:
-        """Оплачивает заказ картой.
-
-        Ошибки: OrderNotFound, OrderNotPayable, PaymentDeclined, PaymentUnavailable.
-        """
         order = self._orders.get(order_id)
         if order is None:
             raise OrderNotFound(order_id)
+        if order.status() == OrderStatus.PAID:
+            return order  # [D2] повтор уже выполненного запроса - успех, а не ошибка
         order.ensure_payable()
-        # Ключ - id заказа: повтор после сбоя записи не спишет деньги дважды.
+        # [E3] Ключ - id заказа: повтор после сбоя записи не спишет деньги дважды.
         receipt = self._acquirer.charge(order.total(), card_token, idempotency_key=order.id())
         order.mark_paid(receipt)
         self._orders.save(order)
@@ -1067,6 +962,7 @@ class PostgresOrders:
         )
         if row is None:
             return None
+        # [T1] строка таблицы -> Order
         return Order(
             row["id"],
             Money(row["total_amount"], row["currency"]),
@@ -1075,6 +971,7 @@ class PostgresOrders:
         )
 
     def save(self, order: Order) -> None:
+        # [A2] сбой базы здесь не ловят: он дойдёт до верхнего обработчика
         self._db.execute(
             "UPDATE orders SET status = $1, payment_id = $2 WHERE id = $3",
             [order.status().value, order.payment_id(), order.id()],
@@ -1084,19 +981,18 @@ class PostgresOrders:
 **http/pay_handler.py** - обработчик. Разбирает запрос, вызывает бизнес-логику, переводит её ошибки в HTTP-статусы. Сам ничего не решает.
 
 ```python
+# POST /orders/{order_id}/pay  {"card_token": "..."}
 class PayOrderHandler:
-    """POST /orders/{order_id}/pay  {"card_token": "..."}"""
-
     def __init__(self, payment: OrderPayment) -> None:
         self._payment = payment
 
     def handle(self, request: HttpRequest) -> HttpResponse:
-        card_token = request.json_string("card_token")
+        card_token = request.json_string("card_token")  # [T1] ввод разбирается на границе
         if card_token is None:
             return HttpResponse(400, {"error": "нужен card_token"})
         try:
             order = self._payment.pay(request.path_param("order_id"), card_token)
-        except OrderNotFound:
+        except OrderNotFound:  # [T2] наши ошибки -> HTTP-статусы, только здесь
             return HttpResponse(404, {"error": "заказ не найден"})
         except OrderNotPayable:
             return HttpResponse(409, {"error": "заказ уже оплачен или отменён"})
@@ -1110,6 +1006,7 @@ class PayOrderHandler:
 **main.py** - точка входа. Единственное место, где создаются адаптеры и всё связывается. `Router` - условный: здесь подключается любой HTTP-сервер или фреймворк.
 
 ```python
+# [I1] единственное место, где создаются адаптеры
 db = Database(env("DATABASE_URL"))
 acquirer = HttpAcquirer(HttpClient(base_url=env("ACQUIRER_URL"), timeout_seconds=10))
 payment = OrderPayment(PostgresOrders(db), acquirer)
@@ -1122,29 +1019,31 @@ router.serve(port=8080)
 **tests/test_order_payment.py** - тесты бизнес-логики на фейках, без базы и сети.
 
 ```python
-class InMemoryOrders:
+class InMemoryOrders:  # [C3] фейк: рабочая реализация в памяти, а не мок
     def __init__(self) -> None:
-        self._orders: dict[str, Order] = {}
+        self._orders = {}  # id заказа -> Order
 
     def get(self, order_id: str) -> Order | None:
-        return self._orders.get(order_id)
+        return copy_of(self._orders.get(order_id))
 
     def save(self, order: Order) -> None:
-        self._orders[order.id()] = order
+        # Копия, как в настоящей базе: изменение без save() не должно быть видно.
+        self._orders[order.id()] = copy_of(order)
 
 class ApprovingAcquirer:
     def charge(self, amount: Money, card_token: str, idempotency_key: str) -> Receipt:
         return Receipt("pay-1", amount)
 
-class DecliningAcquirer:
+class DecliningAcquirer:  # [C2] фейк не выходит за контракт: бросает только PaymentDeclined
     def charge(self, amount: Money, card_token: str, idempotency_key: str) -> Receipt:
         raise PaymentDeclined()
 
 def orders_with_new_order() -> InMemoryOrders:
     orders = InMemoryOrders()
-    orders.save(Order("o-1", Money(Decimal("990"), "RUB"), OrderStatus.NEW, payment_id=None))
+    orders.save(Order("o-1", Money.rub(990), OrderStatus.NEW, payment_id=None))
     return orders
 
+# [C3] тесты вызывают pay, как вызывающий код, и смотрят на результат
 def test_paid_order_becomes_paid() -> None:
     orders = orders_with_new_order()
     OrderPayment(orders, ApprovingAcquirer()).pay("o-1", "card-token")
@@ -1156,24 +1055,58 @@ def test_declined_payment_keeps_order_new() -> None:
     expect_error(PaymentDeclined, lambda: payment.pay("o-1", "card-token"))
     assert orders.get("o-1").status() == OrderStatus.NEW
 
-def test_order_cannot_be_paid_twice() -> None:
+def test_repeated_payment_does_not_charge_again() -> None:
     orders = orders_with_new_order()
-    payment = OrderPayment(orders, ApprovingAcquirer())
-    payment.pay("o-1", "card-token")
-    expect_error(OrderNotPayable, lambda: payment.pay("o-1", "card-token"))
+    OrderPayment(orders, ApprovingAcquirer()).pay("o-1", "card-token")
+    order = OrderPayment(orders, DecliningAcquirer()).pay("o-1", "card-token")
+    assert order.status() == OrderStatus.PAID
 ```
 
-**Где здесь DISTANCE**
+---
 
-| Правило | Где видно |
+## На чём стоят правила
+
+Правило попадает в документ по двум признакам: его независимо формулируют руководства нескольких несвязанных экосистем, и опубликованные исследования ему не противоречат. Мнение одного автора, даже известного, основанием не считается.
+
+Строго доказанных правил в проектировании кода нет. Почти все исследования показывают связь, а не причину, и часть эффектов слабеет, если учесть размер кода. Поэтому колонка "Данные" говорит только о том, подтверждается ли правило измерениями, а не о том, что оно доказано.
+
+| Правило | Где записано | Данные |
+|---|---|---|
+| D1 | C++ Core Guidelines C.3, C.9; Effective Java 15; Rust API Guidelines C-STRUCT-PRIVATE; PEP 8; .NET Design Guidelines | Файлы с нестабильным интерфейсом заметно чаще содержат ошибки и чаще меняются (Mo et al. 2019, 19 проектов) |
+| D2 | Effective Java 54; .NET Design Guidelines (пустая коллекция вместо null); Go Code Review Comments (In-Band Errors); Azure API Guidelines и AWS Well-Architected (идемпотентность) | 92% катастрофических сбоев в пяти распределённых системах - неверная обработка явно сообщённой ошибки (Yuan et al. 2014) |
+| D3 | Go Proverbs; Google Go Style (Interfaces); C++ Core Guidelines T.41; Rust API Guidelines C-GENERIC; .NET Design Guidelines | Интерфейсы, которыми клиенты пользуются по частям, меняются чаще (Romano & Pinzger 2011, 10 систем) |
+| I1 | Microsoft .NET Architecture Guides (dependency inversion, persistence ignorance); Azure Architecture Center; AWS Prescriptive Guidance. Возражение: Google Go Style не советует оборачивать клиентов в свои интерфейсы | Сравнительных исследований нет, поэтому правило условное |
+| I2 | C++ Core Guidelines SF.9; в Go циклы между пакетами запрещены компилятором | У компонентов в циклах вдвое больше отказов (Zimmermann & Nagappan 2007, Windows Server 2003) |
+| S1 | C++ Core Guidelines ES.3; Microsoft .NET Architecture Guides; OWASP ASVS 1.1.6; Linux kernel coding style. Оговорка про похожий код: Go Proverbs, Google Testing Blog | Вредны копии, изменённые несогласованно (Juergens et al. 2009); остальные копии ошибок не добавляют (Rahman et al. 2010; Kapser & Godfrey 2008) |
+| S2 | C++ Core Guidelines C.2, C.40; Effective Java 16; Rust API Guidelines C-VALIDATE; .NET Design Guidelines | Прямых исследований мало |
+| S3 | C++ Core Guidelines I.2, Con.1; Effective Java 17; Google Python Style; NASA/JPL Power of Ten, правило 6; Twelve-Factor App | 97% ошибок конкурентности, не считая взаимных блокировок, - нарушение атомарности или порядка доступа к общему состоянию (Lu et al. 2008) |
+| T1 | OWASP Input Validation Cheat Sheet; OWASP ASVS 5.1; SEI CERT MET00-J; The Rust Book, гл. 9; Effective Java 49; C++ Core Guidelines I.4 | Уязвимости от непроверенного ввода занимают 1, 3, 5 и 7 места в CWE Top 25 за 2024 год |
+| T2 | Effective Java 73; The Rust Book, гл. 9; .NET Design Guidelines; Google Go Style; Google AIP-193; C++ Core Guidelines I.10 | Прямых исследований нет |
+| A1 | Effective Java 77; Go Code Review Comments (Handle Errors); PEP 8 и PEP 20; .NET CA1031; SEI CERT ERR00-J | 92% катастрофических сбоев в пяти распределённых системах - неверная обработка явно сообщённой ошибки; в четверти случаев её просто проигнорировали (Yuan et al. 2014) |
+| A2 | Effective Java 70; The Rust Book, гл. 9; C++ Core Guidelines E.17; Go Code Review Comments (Don't Panic); .NET Design Guidelines | Перехват слишком общего исключения связан с ошибками в части проектов (de Padua & Shang 2018) |
+| N1 | Google Engineering Practices; Google Testing Blog; C++ Core Guidelines Per.7; Google Go Style (least mechanism) | Большинство пользователей задаёт только 6-17% параметров настройки (Xu et al. 2015) |
+| N2 | Go Code Review Comments; Google Go Style; .NET Design Guidelines; C++ Core Guidelines T.1 | Прямых исследований нет |
+| C1 | C++ Core Guidelines I.5, I.7; Effective Java 56, 74; Rust API Guidelines C-FAILURE; .NET Design Guidelines; Google Go Style; AWS Well-Architected | Расхождение документации с кодом бывает ошибкой (Tan et al. 2007) |
+| C2 | C++ Core Guidelines C.120; Google C++ Style; Effective Java 10, 18, 19; .NET Design Guidelines; в Go и Rust наследования нет | В файлах с нарушенным наследованием на 35-503% больше ошибок (Mo et al. 2019); эксперименты о глубине наследования противоречат друг другу (Daly et al. 1996; Prechelt et al. 2003) |
+| C3 | Software Engineering at Google, гл. 12-13; Google Testing Blog. Это одна экосистема | 51% правок моков вынуждены изменением рабочего кода (Spadini et al. 2019) |
+| E1 | C++ Core Guidelines ES.45, NL.19; .NET Design Guidelines; SEI CERT DCL06-C; Linux kernel coding style | Со словами вместо сокращений ошибки находят на 14-19% быстрее (Hofmeister et al. 2017; Schankin et al. 2018) |
+| E2 | PEP 8; PEP 20; Google Style Guides; C++ Core Guidelines NL.4; Software Engineering at Google, гл. 8 | Необычный для своего проекта код чаще содержит ошибки (Ray et al. 2016) |
+| E3 | C++ Core Guidelines NL.1, NL.2; Google Style Guides; Google Engineering Practices; Linux kernel coding style | Прямых исследований мало |
+
+### Чего здесь нет и почему
+
+| Идея | Почему не вошла |
 |---|---|
-| D1 | `HttpAcquirer.charge` и `OrderPayment.pay` - по одному вызову вместо нескольких шагов |
-| I1 | `OrderPayment` не знает ни SQL, ни HTTP; адаптеры создаются только в `main.py` |
-| I2 | интерфейсы `Orders` и `Acquirer` есть, потому что у каждого есть фейк |
-| I4 | `orders` знает `payments`, а `payments` о заказах не знает |
-| S2 | правило "оплатить можно только новый заказ" живёт в `Order` |
-| T1 | обработчик проверяет тело запроса, адаптеры разбирают строку таблицы и ответ эквайринга |
-| T2 | `NetworkError` и коды ответа эквайринга превращаются в `PaymentDeclined` и `PaymentUnavailable` в адаптере; ошибки бизнес-логики превращаются в HTTP-статусы в обработчике |
-| C1 | контракт `charge` и `pay` записан в документации методов |
-| C2 | тесты проверяют результат через `pay`, без моков |
-| E3 | единственный комментарий в бизнес-логике объясняет, почему ключ - id заказа |
+| Закон Деметры | одно руководство и одно исследование, эффект почти исчезает с учётом размера кода |
+| Решение отдельно от побочных эффектов | одно руководство, исследований нет |
+| Полиморфизм вместо ветвления | в экспериментах простое решение иногда лучше; ветвление по типу на число ошибок не влияет (Prechelt et al. 2001; Hall et al. 2014) |
+| Закрепить поведение тестом перед правкой | в руководствах не найдено, исследований нет |
+| Тест раньше кода (TDD) | порядок "тест до или после" на результат не влияет (Fucci et al. 2017) |
+| Лимит длины функции | руководства расходятся, исследования противоречат друг другу |
+| Пакеты по фичам, а не по слоям | в руководствах не найдено, сравнительных исследований нет |
+
+### Источники
+
+Руководства: [C++ Core Guidelines](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines), [Effective Java](https://www.informit.com/store/effective-java-9780134686097), [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments), [Go Proverbs](https://go-proverbs.github.io), [Google Go Style](https://google.github.io/styleguide/go/decisions), [Google C++ Style](https://google.github.io/styleguide/cppguide.html), [Google Python Style](https://google.github.io/styleguide/pyguide.html), [Google Engineering Practices](https://google.github.io/eng-practices/review/), [Software Engineering at Google](https://abseil.io/resources/swe-book), [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/checklist.html), [The Rust Book, гл. 9](https://doc.rust-lang.org/book/ch09-03-to-panic-or-not-to-panic.html), [.NET Design Guidelines](https://learn.microsoft.com/dotnet/standard/design-guidelines/), [.NET Architecture Guides](https://learn.microsoft.com/dotnet/architecture/modern-web-apps-azure/architectural-principles), [Azure Architecture Center](https://learn.microsoft.com/azure/architecture/guide/design-principles/design-for-evolution), [PEP 8](https://peps.python.org/pep-0008), [PEP 20](https://peps.python.org/pep-0020), [.NET CA1031](https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1031), [SEI CERT ERR00-J](https://cmu-sei.github.io/secure-coding-standards/sei-cert-oracle-coding-standard-for-java/rules/exceptional-behavior-err/err00-j), [OWASP Input Validation Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html), [CWE Top 25](https://cwe.mitre.org/top25/archive/2024/2024_top25_list), [Linux kernel coding style](https://kernel.org/doc/html/latest/process/coding-style.html), [Twelve-Factor App](https://12factor.net).
+
+Исследования: [Mo et al. 2019](https://www.cs.drexel.edu/~yc349/papers/2019/tse2019.pdf), [Yuan et al. 2014](https://gwern.net/doc/cs/algorithm/2014-yuan.pdf), [Zimmermann & Nagappan 2007](https://thomas-zimmermann.com/publications/files/zimmermann-issre-2007.pdf), [Juergens et al. 2009](https://ar5iv.labs.arxiv.org/html/1701.05472), [Rahman et al. 2010](https://www.microsoft.com/en-us/research/publication/clones-what-is-that-smell/), [Kapser & Godfrey 2008](https://cormack.uwaterloo.ca/~migod/papers/2008/emse08-ClonePatterns.pdf), [Lu et al. 2008](https://www.cs.columbia.edu/~junfeng/10fa-e6998/papers/concurrency-bugs.pdf), [Xu et al. 2015](https://cseweb.ucsd.edu/~tixu/papers/fse15.pdf), [Tan et al. 2007](https://www.cs.purdue.edu/homes/lintan/publications/icomment_sosp07.pdf), [Spadini et al. 2019](https://d-nb.info/1174174781/34), [Hofmeister et al. 2017](https://www.se.cs.uni-saarland.de/publications/docs/HoSeHo17.pdf), [Schankin et al. 2018](https://brains-on-code.github.io/descriptive-compound-identifier-names.pdf), [Ray et al. 2016](https://arxiv.org/abs/1506.01159), [Prechelt et al. 2001](https://ps.ipd.kit.edu/180_778.php), [Prechelt et al. 2003](https://ps.ipd.kit.edu/180_837.php), [Hall et al. 2014](https://uhra.herts.ac.uk/handle/2299/14912), [Fucci et al. 2017](https://arxiv.org/abs/1611.05994), [de Padua & Shang 2018](https://ece.uwaterloo.ca/~wshang/pubs/MSR2018_GUI.pdf).
