@@ -1,8 +1,6 @@
 # DISTANCE
 
-Code design rules for any language. Examples and the reasoning behind
-each rule are in README.md: open it when a rule is unclear or conflicts
-with the task.
+Code design rules for any language.
 
 ## Exceptions
 
